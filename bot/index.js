@@ -691,7 +691,7 @@ bot.command('fund', async (ctx) => {
 
   // Check if already on-chain (in database)
   if (deal.contract_deal_id) {
-    const depositLink = `https://trustlock-escrow.vercel.app?deal=${dealId}`;
+    const depositLink = `https://nobrakesnft.github.io/TrustLock?deal=${dealId}`;
 
     await ctx.reply(`
 Deal already on blockchain!
@@ -714,7 +714,7 @@ ${depositLink}
         .update({ contract_deal_id: dealId })
         .eq('deal_id', dealId);
 
-      const depositLink = `https://trustlock-escrow.vercel.app?deal=${dealId}`;
+      const depositLink = `https://nobrakesnft.github.io/TrustLock?deal=${dealId}`;
 
       await ctx.reply(`
 Deal already on blockchain!
@@ -756,7 +756,7 @@ ${depositLink}
       })
       .eq('deal_id', dealId);
 
-    const depositLink = `https://trustlock-escrow.vercel.app?deal=${dealId}`;
+    const depositLink = `https://nobrakesnft.github.io/TrustLock?deal=${dealId}`;
 
     await ctx.reply(`
 ✅ Deal registered on blockchain!
