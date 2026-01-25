@@ -246,14 +246,12 @@ Buyer: @${buyerUsername}
 Amount: ${amount} USDC
 Description: ${description}
 
-⏳ Status: Waiting for buyer
+⏳ Waiting for @${buyerUsername} to deposit
 
-@${buyerUsername}:
+@${buyerUsername} - Next steps:
 1. Register wallet: /wallet 0xYourAddress
-2. Check deal: /status ${dealId}
-3. Deposit ${amount} USDC via the deposit link
-
-Contract: ${CONTRACT_ADDRESS}
+2. Fund deal: /fund ${dealId}
+3. Click the deposit link to approve & pay
   `;
 
   await ctx.reply(confirmMessage);
@@ -693,20 +691,15 @@ bot.command('fund', async (ctx) => {
 
   // Check if already on-chain (in database)
   if (deal.contract_deal_id) {
+    const depositLink = `https://trustlock-escrow.vercel.app?deal=${dealId}`;
+
     await ctx.reply(`
-Deal already registered on-chain!
+Deal already on blockchain!
 
 Deal ID: ${dealId}
 
-📥 DEPOSIT NOW:
-1. Approve USDC spending for contract
-2. Call deposit() with your deal
-
-Contract: ${CONTRACT_ADDRESS}
-USDC: ${USDC_ADDRESS}
-
-Use Basescan to interact:
-https://sepolia.basescan.org/address/${CONTRACT_ADDRESS}#writeContract
+👇 TAP TO DEPOSIT:
+${depositLink}
     `);
     return;
   }
@@ -721,17 +714,15 @@ https://sepolia.basescan.org/address/${CONTRACT_ADDRESS}#writeContract
         .update({ contract_deal_id: dealId })
         .eq('deal_id', dealId);
 
+      const depositLink = `https://trustlock-escrow.vercel.app?deal=${dealId}`;
+
       await ctx.reply(`
 Deal already on blockchain!
 
 Deal ID: ${dealId}
 
-📥 DEPOSIT NOW:
-Contract: ${CONTRACT_ADDRESS}
-USDC: ${USDC_ADDRESS}
-
-Use Basescan:
-https://sepolia.basescan.org/address/${CONTRACT_ADDRESS}#writeContract
+👇 TAP TO DEPOSIT:
+${depositLink}
       `);
       return;
     }
@@ -765,28 +756,22 @@ https://sepolia.basescan.org/address/${CONTRACT_ADDRESS}#writeContract
       })
       .eq('deal_id', dealId);
 
+    const depositLink = `https://trustlock-escrow.vercel.app?deal=${dealId}`;
+
     await ctx.reply(`
 ✅ Deal registered on blockchain!
 
 Deal ID: ${dealId}
 Amount: ${deal.amount} USDC
-Seller: ${sellerUser.wallet_address.slice(0,8)}...
-Buyer: ${buyerUser.wallet_address.slice(0,8)}...
 
-📥 DEPOSIT NOW:
+👇 TAP TO DEPOSIT:
+${depositLink}
 
-1. Open your wallet (MetaMask, Coinbase, etc.)
-2. Make sure you're on Base Sepolia
-3. Approve USDC spending for the contract
-4. Call deposit() on the contract
+1. Click the link above
+2. Connect your wallet
+3. Approve & Deposit
 
-Contract: ${CONTRACT_ADDRESS}
-USDC: ${USDC_ADDRESS}
-
-Or use the web interface:
-https://trustlock-escrow.vercel.app/?deal=${dealId}
-
-After depositing, the deal status will update to "funded".
+That's it! Funds will be locked in escrow.
     `);
 
   } catch (error) {
