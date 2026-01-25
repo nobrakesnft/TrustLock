@@ -92,19 +92,28 @@ Setup:
 
 Deal Commands:
 /new @buyer 100 Logo design - Create escrow
+/fund TL-XXXX - Get deposit link (buyer)
 /status TL-XXXX - Check deal status
 /deals - View your active deals
 /release TL-XXXX - Release funds (buyer only)
 /cancel TL-XXXX - Cancel deal
+
+Disputes:
 /dispute TL-XXXX reason - Flag a problem
-/rep - Check your reputation
+/canceldispute TL-XXXX - Cancel your dispute
+
+Reviews:
+/review TL-XXXX 5 Great seller! - Rate 1-5
+/rep - Check reputation
+/rep @username - Check someone's rep
 
 Example flow:
 1. /wallet 0xYourAddress
-2. /new @buyer 50 Website banner
-3. Buyer deposits USDC via link
+2. Seller: /new @buyer 50 Logo design
+3. Buyer: /fund TL-XXXX → Click deposit link
 4. Seller delivers work
-5. Buyer uses /release TL-XXXX
+5. Buyer: /release TL-XXXX
+6. Both: /review TL-XXXX 5 Great!
 
 Contract: ${CONTRACT_ADDRESS}
 Network: Base Sepolia (Testnet)
@@ -389,7 +398,8 @@ bot.command('release', async (ctx) => {
   const userId = ctx.from.id;
   const username = ctx.from.username;
   const text = ctx.message.text;
-  const match = text.match(/^\/release\s+(TL-\w+)$/i);
+  // Support: /release TL-XXXX or /release TL-XXXX confirm (for disputed deals)
+  const match = text.match(/^\/release\s+(TL-\w+)(?:\s+(confirm))?$/i);
 
   if (!match) {
     await ctx.reply('Usage: /release TL-XXXX');
@@ -397,6 +407,7 @@ bot.command('release', async (ctx) => {
   }
 
   const dealId = match[1].toUpperCase();
+  const forceConfirm = match[2]?.toLowerCase() === 'confirm';
 
   const { data: deal, error } = await supabase
     .from('deals')
@@ -414,7 +425,23 @@ bot.command('release', async (ctx) => {
     return;
   }
 
-  if (deal.status !== 'funded') {
+  // Handle disputed deals - require confirmation to auto-cancel dispute
+  if (deal.status === 'disputed') {
+    if (!forceConfirm) {
+      await ctx.reply(`
+⚠️ This deal is currently disputed!
+
+Deal: ${dealId}
+
+Releasing funds will cancel the dispute and pay the seller.
+Are you sure you want to proceed?
+
+To confirm, use: /release ${dealId} confirm
+      `);
+      return;
+    }
+    // User confirmed - will proceed to release and cancel dispute
+  } else if (deal.status !== 'funded') {
     await ctx.reply(`Cannot release. Deal status is: ${deal.status}`);
     return;
   }
@@ -423,7 +450,8 @@ bot.command('release', async (ctx) => {
     .from('deals')
     .update({
       status: 'completed',
-      completed_at: new Date().toISOString()
+      completed_at: new Date().toISOString(),
+      dispute_cancelled_by: deal.status === 'disputed' ? username : null
     })
     .eq('deal_id', dealId);
 
@@ -435,18 +463,45 @@ bot.command('release', async (ctx) => {
   const fee = (deal.amount * 0.015).toFixed(2);
   const sellerReceives = (deal.amount - fee).toFixed(2);
 
-  await ctx.reply(`
+  let message = `
 ✅ Funds Released!
 
 Deal: ${dealId}
 Amount: ${deal.amount} USDC
 Fee (1.5%): ${fee} USDC
 Seller receives: ${sellerReceives} USDC
+`;
 
+  if (deal.status === 'disputed') {
+    message += `
+⚠️ Dispute was cancelled by buyer releasing funds.
+`;
+  }
+
+  message += `
 @${deal.seller_username} - Payment released by @${deal.buyer_username}
 
-Note: On-chain release happens automatically when the buyer calls release() on the contract.
-  `);
+Don't forget to leave a review: /review ${dealId}
+  `;
+
+  await ctx.reply(message);
+
+  // Notify seller
+  if (deal.seller_telegram_id) {
+    try {
+      await bot.api.sendMessage(deal.seller_telegram_id, `
+🎉 Payment Released!
+
+Deal: ${dealId}
+Amount: ${sellerReceives} USDC (after 1.5% fee)
+Buyer: @${deal.buyer_username}
+${deal.status === 'disputed' ? '\n⚠️ Dispute was cancelled - buyer released funds.' : ''}
+Leave a review: /review ${dealId}
+      `);
+    } catch (e) {
+      console.error('Failed to notify seller:', e.message);
+    }
+  }
 });
 
 // /cancel command
@@ -554,7 +609,12 @@ bot.command('dispute', async (ctx) => {
 
   await supabase
     .from('deals')
-    .update({ status: 'disputed' })
+    .update({
+      status: 'disputed',
+      disputed_by: username,
+      dispute_reason: reason,
+      disputed_at: new Date().toISOString()
+    })
     .eq('deal_id', dealId);
 
   const disputedBy = isSeller ? 'Seller' : 'Buyer';
@@ -570,8 +630,213 @@ Funds are locked. Platform owner will review.
 
 @${deal.seller_username} @${deal.buyer_username} - Deal under dispute.
 
+To cancel this dispute: /canceldispute ${dealId}
+Or buyer can release funds: /release ${dealId}
+
 Contact @nobrakesnft for resolution.
   `);
+
+  // Notify the other party
+  const otherPartyId = isSeller ? null : deal.seller_telegram_id;
+  if (otherPartyId) {
+    try {
+      await bot.api.sendMessage(otherPartyId, `
+⚠️ Dispute Filed on Deal ${dealId}
+
+By: @${username} (${disputedBy})
+Reason: ${reason}
+
+Respond or provide evidence to @nobrakesnft
+Or cancel dispute: /canceldispute ${dealId}
+      `);
+    } catch (e) {
+      console.error('Failed to notify other party:', e.message);
+    }
+  }
+});
+
+// /canceldispute command - Cancel a dispute you opened
+bot.command('canceldispute', async (ctx) => {
+  const userId = ctx.from.id;
+  const username = ctx.from.username;
+  const text = ctx.message.text;
+  const match = text.match(/^\/canceldispute\s+(TL-\w+)$/i);
+
+  if (!match) {
+    await ctx.reply('Usage: /canceldispute TL-XXXX');
+    return;
+  }
+
+  const dealId = match[1].toUpperCase();
+
+  const { data: deal, error } = await supabase
+    .from('deals')
+    .select('*')
+    .eq('deal_id', dealId)
+    .single();
+
+  if (error || !deal) {
+    await ctx.reply(`Deal ${dealId} not found.`);
+    return;
+  }
+
+  if (deal.status !== 'disputed') {
+    await ctx.reply(`Deal is not disputed. Status: ${deal.status}`);
+    return;
+  }
+
+  // Only the person who opened the dispute can cancel it
+  if (deal.disputed_by?.toLowerCase() !== username?.toLowerCase()) {
+    await ctx.reply(`Only @${deal.disputed_by} (who opened the dispute) can cancel it.`);
+    return;
+  }
+
+  await supabase
+    .from('deals')
+    .update({
+      status: 'funded',
+      dispute_cancelled_by: username,
+      dispute_cancelled_at: new Date().toISOString()
+    })
+    .eq('deal_id', dealId);
+
+  await ctx.reply(`
+✅ Dispute Cancelled
+
+Deal: ${dealId}
+Cancelled by: @${username}
+
+Deal is now back to funded status.
+Buyer can release funds with: /release ${dealId}
+
+@${deal.seller_username} @${deal.buyer_username} - Dispute has been resolved.
+  `);
+
+  // Notify other party
+  const isSeller = deal.seller_telegram_id === userId;
+  const otherPartyId = isSeller ? null : deal.seller_telegram_id;
+  if (otherPartyId) {
+    try {
+      await bot.api.sendMessage(otherPartyId, `
+✅ Dispute Cancelled on Deal ${dealId}
+
+@${username} has cancelled the dispute.
+Deal is back to normal - awaiting release.
+      `);
+    } catch (e) {
+      console.error('Failed to notify:', e.message);
+    }
+  }
+});
+
+// /review command - Leave a review after deal completion
+bot.command('review', async (ctx) => {
+  const userId = ctx.from.id;
+  const username = ctx.from.username;
+  const text = ctx.message.text;
+  // Format: /review TL-XXXX 5 Great seller, fast delivery!
+  const match = text.match(/^\/review\s+(TL-\w+)\s+([1-5])(?:\s+(.+))?$/i);
+
+  if (!match) {
+    await ctx.reply(`
+📝 Leave a Review
+
+Usage: /review TL-XXXX [1-5] [comment]
+
+Examples:
+/review TL-ABCD 5 Great experience!
+/review TL-ABCD 4 Good but slow delivery
+/review TL-ABCD 3
+
+Rating scale:
+⭐⭐⭐⭐⭐ (5) - Excellent
+⭐⭐⭐⭐ (4) - Good
+⭐⭐⭐ (3) - Average
+⭐⭐ (2) - Poor
+⭐ (1) - Terrible
+    `);
+    return;
+  }
+
+  const dealId = match[1].toUpperCase();
+  const rating = parseInt(match[2]);
+  const comment = match[3]?.trim() || '';
+
+  const { data: deal, error } = await supabase
+    .from('deals')
+    .select('*')
+    .eq('deal_id', dealId)
+    .single();
+
+  if (error || !deal) {
+    await ctx.reply(`Deal ${dealId} not found.`);
+    return;
+  }
+
+  if (deal.status !== 'completed') {
+    await ctx.reply('Can only review completed deals.');
+    return;
+  }
+
+  const isSeller = deal.seller_telegram_id === userId;
+  const isBuyer = deal.buyer_username.toLowerCase() === username?.toLowerCase();
+
+  if (!isSeller && !isBuyer) {
+    await ctx.reply('You are not part of this deal.');
+    return;
+  }
+
+  // Check if already reviewed
+  const reviewField = isSeller ? 'seller_review' : 'buyer_review';
+  const ratingField = isSeller ? 'seller_rating' : 'buyer_rating';
+
+  if (deal[reviewField]) {
+    await ctx.reply('You have already reviewed this deal.');
+    return;
+  }
+
+  // Save review
+  const updateData = {
+    [reviewField]: comment || 'No comment',
+    [ratingField]: rating,
+    [`${reviewField}_at`]: new Date().toISOString()
+  };
+
+  await supabase
+    .from('deals')
+    .update(updateData)
+    .eq('deal_id', dealId);
+
+  const stars = '⭐'.repeat(rating);
+  const role = isSeller ? 'seller' : 'buyer';
+  const reviewedParty = isSeller ? deal.buyer_username : deal.seller_username;
+
+  await ctx.reply(`
+✅ Review Submitted!
+
+Deal: ${dealId}
+Your rating for @${reviewedParty}: ${stars} (${rating}/5)
+${comment ? `Comment: ${comment}` : ''}
+
+Thank you for your feedback!
+  `);
+
+  // Notify the reviewed party
+  const otherPartyId = isSeller ? null : deal.seller_telegram_id;
+  if (otherPartyId) {
+    try {
+      await bot.api.sendMessage(otherPartyId, `
+📝 New Review Received!
+
+Deal: ${dealId}
+From: @${username} (${role})
+Rating: ${stars} (${rating}/5)
+${comment ? `Comment: "${comment}"` : ''}
+      `);
+    } catch (e) {
+      console.error('Failed to notify:', e.message);
+    }
+  }
 });
 
 // /resolve command - Owner only
@@ -848,190 +1113,8 @@ bot.on('message:text', async (ctx) => {
 });
 
 // ============================================
-// BLOCKCHAIN EVENT LISTENER FOR NOTIFICATIONS
+// BLOCKCHAIN STATUS POLLING (More reliable than event filters)
 // ============================================
-
-// Track last processed block to avoid duplicates
-let lastProcessedBlock = 0;
-
-// Listen for DealFunded events and notify parties
-async function startEventListener() {
-  console.log('Starting blockchain event listener...');
-
-  // Get current block number as starting point
-  try {
-    lastProcessedBlock = await provider.getBlockNumber() - 10; // Start from 10 blocks back
-    console.log(`Listening for events from block ${lastProcessedBlock}`);
-  } catch (e) {
-    console.error('Failed to get block number:', e.message);
-    lastProcessedBlock = 0;
-  }
-
-  // Listen for DealFunded events
-  escrowContract.on('DealFunded', async (dealId, buyer, amount, event) => {
-    console.log(`DealFunded event: dealId=${dealId}, buyer=${buyer}, amount=${amount}`);
-
-    try {
-      // Get deal details from contract
-      const deal = await escrowContract.deals(dealId);
-      const externalId = deal[0]; // TL-XXXX
-
-      if (!externalId || !externalId.startsWith('TL-')) {
-        console.log('Invalid external ID, skipping');
-        return;
-      }
-
-      // Get deal from database
-      const { data: dbDeal, error } = await supabase
-        .from('deals')
-        .select('*')
-        .eq('deal_id', externalId)
-        .single();
-
-      if (error || !dbDeal) {
-        console.log(`Deal ${externalId} not found in database`);
-        return;
-      }
-
-      // Skip if already funded
-      if (dbDeal.status === 'funded') {
-        console.log(`Deal ${externalId} already marked as funded`);
-        return;
-      }
-
-      // Update deal status to funded
-      const { error: updateError } = await supabase
-        .from('deals')
-        .update({
-          status: 'funded',
-          funded_at: new Date().toISOString(),
-          funded_tx_hash: event.transactionHash
-        })
-        .eq('deal_id', externalId);
-
-      if (updateError) {
-        console.error('Failed to update deal status:', updateError);
-        return;
-      }
-
-      console.log(`Deal ${externalId} marked as funded!`);
-
-      // Format amount (USDC has 6 decimals)
-      const amountFormatted = (Number(amount) / 1e6).toFixed(2);
-
-      // Notify seller
-      if (dbDeal.seller_telegram_id) {
-        try {
-          await bot.api.sendMessage(dbDeal.seller_telegram_id, `
-💰 Payment Received!
-
-Deal: ${externalId}
-Amount: ${amountFormatted} USDC
-Buyer: @${dbDeal.buyer_username}
-
-The buyer has funded the escrow. Deliver your goods/service now.
-
-Once delivered, the buyer will release funds with /release ${externalId}
-
-View tx: https://sepolia.basescan.org/tx/${event.transactionHash}
-          `);
-          console.log(`Notified seller (${dbDeal.seller_telegram_id})`);
-        } catch (e) {
-          console.error('Failed to notify seller:', e.message);
-        }
-      }
-
-      // Also notify buyer confirmation
-      const { data: buyerUser } = await supabase
-        .from('users')
-        .select('telegram_id')
-        .eq('username', dbDeal.buyer_username)
-        .single();
-
-      if (buyerUser?.telegram_id) {
-        try {
-          await bot.api.sendMessage(buyerUser.telegram_id, `
-✅ Deposit Confirmed!
-
-Deal: ${externalId}
-Amount: ${amountFormatted} USDC
-Seller: @${dbDeal.seller_username}
-
-Your funds are now safely locked in escrow.
-
-Once you receive your goods/service, release funds with:
-/release ${externalId}
-
-View tx: https://sepolia.basescan.org/tx/${event.transactionHash}
-          `);
-          console.log(`Notified buyer (${buyerUser.telegram_id})`);
-        } catch (e) {
-          console.error('Failed to notify buyer:', e.message);
-        }
-      }
-
-    } catch (e) {
-      console.error('Error processing DealFunded event:', e.message);
-    }
-  });
-
-  // Also listen for DealCompleted events
-  escrowContract.on('DealCompleted', async (dealId, seller, amount, fee, event) => {
-    console.log(`DealCompleted event: dealId=${dealId}`);
-
-    try {
-      const deal = await escrowContract.deals(dealId);
-      const externalId = deal[0];
-
-      if (!externalId || !externalId.startsWith('TL-')) return;
-
-      // Update database
-      await supabase
-        .from('deals')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString()
-        })
-        .eq('deal_id', externalId);
-
-      // Get deal for notifications
-      const { data: dbDeal } = await supabase
-        .from('deals')
-        .select('*')
-        .eq('deal_id', externalId)
-        .single();
-
-      if (!dbDeal) return;
-
-      const amountFormatted = (Number(amount) / 1e6).toFixed(2);
-      const feeFormatted = (Number(fee) / 1e6).toFixed(2);
-
-      // Notify seller
-      if (dbDeal.seller_telegram_id) {
-        try {
-          await bot.api.sendMessage(dbDeal.seller_telegram_id, `
-🎉 Funds Released!
-
-Deal: ${externalId}
-Amount received: ${amountFormatted} USDC
-Fee: ${feeFormatted} USDC
-
-Thank you for using TrustLock!
-
-View tx: https://sepolia.basescan.org/tx/${event.transactionHash}
-          `);
-        } catch (e) {
-          console.error('Failed to notify seller of completion:', e.message);
-        }
-      }
-
-    } catch (e) {
-      console.error('Error processing DealCompleted event:', e.message);
-    }
-  });
-
-  console.log('Event listeners active!');
-}
 
 // Polling fallback - check pending deals every 30 seconds
 async function pollPendingDeals() {
@@ -1114,9 +1197,7 @@ bot.start();
 console.log('TrustLock bot is running!');
 console.log('Contract:', CONTRACT_ADDRESS);
 
-// Start event listener
-startEventListener();
-
-// Start polling as backup (every 30 seconds)
+// Start polling for deal status (every 30 seconds)
 setInterval(pollPendingDeals, 30000);
+pollPendingDeals(); // Run immediately on start
 console.log('Polling for deal status every 30 seconds');

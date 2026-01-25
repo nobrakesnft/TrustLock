@@ -539,10 +539,58 @@
             setLoading('search-btn', false);
         }
 
+        // Detect mobile device
+        function isMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        // Get current page URL for deep links
+        function getCurrentUrl() {
+            return window.location.href;
+        }
+
+        // Open in MetaMask mobile browser
+        function openInMetaMask() {
+            const url = getCurrentUrl();
+            const metamaskUrl = `https://metamask.app.link/dapp/${url.replace('https://', '')}`;
+            window.location.href = metamaskUrl;
+        }
+
+        // Open in Coinbase Wallet
+        function openInCoinbase() {
+            const url = getCurrentUrl();
+            window.location.href = `https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(url)}`;
+        }
+
+        // Show mobile wallet options
+        function showMobileOptions() {
+            const html = `
+                <div style="text-align:center;">
+                    <p style="margin-bottom:16px;color:#888;">Open this page in your wallet's browser:</p>
+                    <button onclick="openInMetaMask()" class="btn btn-primary" style="margin-bottom:10px;">
+                        Open in MetaMask
+                    </button>
+                    <button onclick="openInCoinbase()" class="btn btn-secondary">
+                        Open in Coinbase Wallet
+                    </button>
+                    <p style="margin-top:16px;font-size:0.8rem;color:#666;">
+                        Or copy this URL and paste in your wallet's browser
+                    </p>
+                </div>
+            `;
+            $('connect-section').innerHTML = html;
+        }
+
         // Connect Wallet
         async function connectWallet() {
+            // Check if wallet is available
             if (!window.ethereum) {
-                showAlert('action-alert', 'Please install MetaMask or a Web3 wallet', 'error');
+                if (isMobile()) {
+                    // On mobile without ethereum - show deep link options
+                    showMobileOptions();
+                    return;
+                }
+                showAlert('action-alert', 'No wallet detected. Install MetaMask or open this page in your wallet browser.', 'error');
                 return;
             }
 
