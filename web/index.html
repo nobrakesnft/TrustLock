@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrustLock - Deposit</title>
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .logo p {
+            color: #888;
+            margin-top: 5px;
+        }
+        .card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .card h2 {
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+            color: #00d9ff;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            color: #888;
+        }
+        .info-value {
+            font-weight: 600;
+        }
+        .input-group {
+            margin-bottom: 16px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #888;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            font-size: 1rem;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: #00d9ff;
+        }
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border-radius: 8px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 12px;
+        }
+        .btn-primary {
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            color: #1a1a2e;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0,217,255,0.3);
+        }
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .status {
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 16px;
+            text-align: center;
+        }
+        .status.success {
+            background: rgba(0,255,136,0.1);
+            color: #00ff88;
+        }
+        .status.error {
+            background: rgba(255,0,0,0.1);
+            color: #ff6b6b;
+        }
+        .status.pending {
+            background: rgba(0,217,255,0.1);
+            color: #00d9ff;
+        }
+        .wallet-info {
+            font-size: 0.85rem;
+            color: #888;
+            text-align: center;
+            margin-top: 8px;
+        }
+        .steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+        .step {
+            text-align: center;
+            flex: 1;
+        }
+        .step-number {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .step.active .step-number {
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            color: #1a1a2e;
+        }
+        .step.completed .step-number {
+            background: #00ff88;
+            color: #1a1a2e;
+        }
+        .step-label {
+            font-size: 0.8rem;
+            color: #888;
+        }
+        .network-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: rgba(255,193,7,0.2);
+            color: #ffc107;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            margin-top: 10px;
+        }
+        #deal-lookup {
+            display: block;
+        }
+        #deposit-flow {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <h1>TrustLock</h1>
+            <p>Secure Crypto Escrow</p>
+            <span class="network-badge">Base Sepolia Testnet</span>
+        </div>
+
+        <!-- Deal Lookup -->
+        <div id="deal-lookup" class="card">
+            <h2>Find Your Deal</h2>
+            <div class="input-group">
+                <label>Deal ID</label>
+                <input type="text" id="deal-id-input" placeholder="TL-XXXX" />
+            </div>
+            <button class="btn btn-primary" onclick="lookupDeal()">Find Deal</button>
+            <div id="lookup-status"></div>
+        </div>
+
+        <!-- Deposit Flow -->
+        <div id="deposit-flow">
+            <div class="card">
+                <h2>Deal Details</h2>
+                <div class="info-row">
+                    <span class="info-label">Deal ID</span>
+                    <span class="info-value" id="deal-id">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Seller</span>
+                    <span class="info-value" id="seller">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Amount</span>
+                    <span class="info-value" id="amount">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Description</span>
+                    <span class="info-value" id="description">-</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="steps">
+                    <div class="step" id="step1">
+                        <div class="step-number">1</div>
+                        <div class="step-label">Connect</div>
+                    </div>
+                    <div class="step" id="step2">
+                        <div class="step-number">2</div>
+                        <div class="step-label">Approve</div>
+                    </div>
+                    <div class="step" id="step3">
+                        <div class="step-number">3</div>
+                        <div class="step-label">Deposit</div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" id="connect-btn" onclick="connectWallet()">Connect Wallet</button>
+                <button class="btn btn-primary" id="approve-btn" onclick="approveUSDC()" style="display:none;">Approve USDC</button>
+                <button class="btn btn-primary" id="deposit-btn" onclick="deposit()" style="display:none;">Deposit USDC</button>
+
+                <div class="wallet-info" id="wallet-info"></div>
+                <div id="status"></div>
+            </div>
+
+            <button class="btn btn-secondary" onclick="goBack()">Back to Search</button>
+        </div>
+    </div>
+
+    <script>
+        // Contract addresses
+        const CONTRACT_ADDRESS = '0x930e2828EA1D9D8cFa5a934A133f2d290924d9bC';
+        const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+        const BASE_SEPOLIA_CHAIN_ID = 84532;
+
+        // ABIs
+        const ESCROW_ABI = [
+            "function deposit(uint256 _dealId) external",
+            "function getDealByExternalId(string calldata _externalId) external view returns (tuple(string externalId, address seller, address buyer, uint256 amount, uint8 status, uint256 createdAt, uint256 completedAt))",
+            "function externalIdToDealId(string calldata) external view returns (uint256)"
+        ];
+
+        const ERC20_ABI = [
+            "function approve(address spender, uint256 amount) external returns (bool)",
+            "function allowance(address owner, address spender) external view returns (uint256)",
+            "function balanceOf(address account) external view returns (uint256)"
+        ];
+
+        let provider, signer, escrowContract, usdcContract;
+        let currentDeal = null;
+        let onChainDealId = null;
+
+        // For demo - simulated deal data (in production, fetch from Supabase)
+        async function lookupDeal() {
+            const dealId = document.getElementById('deal-id-input').value.trim().toUpperCase();
+
+            if (!dealId.match(/^TL-[A-Z0-9]{4}$/)) {
+                showStatus('lookup-status', 'Invalid deal ID format. Use TL-XXXX', 'error');
+                return;
+            }
+
+            showStatus('lookup-status', 'Looking up deal...', 'pending');
+
+            try {
+                // Try to get deal from contract
+                const tempProvider = new ethers.providers.JsonRpcProvider('https://sepolia.base.org');
+                const tempContract = new ethers.Contract(CONTRACT_ADDRESS, ESCROW_ABI, tempProvider);
+
+                // Check if deal exists on-chain
+                const chainDealId = await tempContract.externalIdToDealId(dealId);
+
+                if (chainDealId.toString() !== '0') {
+                    // Deal exists on-chain
+                    const deal = await tempContract.getDealByExternalId(dealId);
+                    currentDeal = {
+                        deal_id: dealId,
+                        seller: deal.seller,
+                        buyer: deal.buyer,
+                        amount: ethers.utils.formatUnits(deal.amount, 6),
+                        status: deal.status,
+                        description: 'On-chain deal'
+                    };
+                    onChainDealId = chainDealId.toString();
+                } else {
+                    // Deal not on-chain yet - show placeholder
+                    // In production, fetch from Supabase API
+                    currentDeal = {
+                        deal_id: dealId,
+                        seller: 'Pending registration',
+                        buyer: 'You',
+                        amount: '0',
+                        status: 0,
+                        description: 'Deal not yet registered on-chain. Contact seller.'
+                    };
+                    onChainDealId = null;
+                }
+
+                displayDeal();
+                document.getElementById('deal-lookup').style.display = 'none';
+                document.getElementById('deposit-flow').style.display = 'block';
+
+            } catch (error) {
+                console.error(error);
+                showStatus('lookup-status', 'Deal not found or not yet on-chain', 'error');
+            }
+        }
+
+        function displayDeal() {
+            document.getElementById('deal-id').textContent = currentDeal.deal_id;
+            document.getElementById('seller').textContent = shortenAddress(currentDeal.seller);
+            document.getElementById('amount').textContent = currentDeal.amount + ' USDC';
+            document.getElementById('description').textContent = currentDeal.description;
+        }
+
+        function shortenAddress(addr) {
+            if (!addr || addr.length < 10) return addr;
+            return addr.slice(0, 6) + '...' + addr.slice(-4);
+        }
+
+        async function connectWallet() {
+            if (!window.ethereum) {
+                showStatus('status', 'Please install MetaMask or another Web3 wallet', 'error');
+                return;
+            }
+
+            try {
+                showStatus('status', 'Connecting...', 'pending');
+
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                await provider.send("eth_requestAccounts", []);
+
+                // Check network
+                const network = await provider.getNetwork();
+                if (network.chainId !== BASE_SEPOLIA_CHAIN_ID) {
+                    showStatus('status', 'Please switch to Base Sepolia network', 'error');
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: '0x14A34' }],
+                        });
+                    } catch (switchError) {
+                        if (switchError.code === 4902) {
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: '0x14A34',
+                                    chainName: 'Base Sepolia',
+                                    nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+                                    rpcUrls: ['https://sepolia.base.org'],
+                                    blockExplorerUrls: ['https://sepolia.basescan.org']
+                                }]
+                            });
+                        }
+                    }
+                    provider = new ethers.providers.Web3Provider(window.ethereum);
+                }
+
+                signer = provider.getSigner();
+                const address = await signer.getAddress();
+
+                escrowContract = new ethers.Contract(CONTRACT_ADDRESS, ESCROW_ABI, signer);
+                usdcContract = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, signer);
+
+                document.getElementById('wallet-info').textContent = 'Connected: ' + shortenAddress(address);
+                document.getElementById('connect-btn').style.display = 'none';
+                document.getElementById('approve-btn').style.display = 'block';
+                document.getElementById('step1').classList.add('completed');
+                document.getElementById('step2').classList.add('active');
+
+                showStatus('status', 'Wallet connected!', 'success');
+
+                // Check allowance
+                await checkAllowance();
+
+            } catch (error) {
+                console.error(error);
+                showStatus('status', 'Failed to connect: ' + error.message, 'error');
+            }
+        }
+
+        async function checkAllowance() {
+            const address = await signer.getAddress();
+            const allowance = await usdcContract.allowance(address, CONTRACT_ADDRESS);
+            const requiredAmount = ethers.utils.parseUnits(currentDeal.amount, 6);
+
+            if (allowance.gte(requiredAmount)) {
+                document.getElementById('approve-btn').style.display = 'none';
+                document.getElementById('deposit-btn').style.display = 'block';
+                document.getElementById('step2').classList.remove('active');
+                document.getElementById('step2').classList.add('completed');
+                document.getElementById('step3').classList.add('active');
+            }
+        }
+
+        async function approveUSDC() {
+            try {
+                showStatus('status', 'Approving USDC...', 'pending');
+
+                const amount = ethers.utils.parseUnits(currentDeal.amount, 6);
+                const tx = await usdcContract.approve(CONTRACT_ADDRESS, amount);
+
+                showStatus('status', 'Waiting for confirmation...', 'pending');
+                await tx.wait();
+
+                document.getElementById('approve-btn').style.display = 'none';
+                document.getElementById('deposit-btn').style.display = 'block';
+                document.getElementById('step2').classList.remove('active');
+                document.getElementById('step2').classList.add('completed');
+                document.getElementById('step3').classList.add('active');
+
+                showStatus('status', 'USDC approved! Now deposit.', 'success');
+
+            } catch (error) {
+                console.error(error);
+                showStatus('status', 'Approval failed: ' + error.message, 'error');
+            }
+        }
+
+        async function deposit() {
+            if (!onChainDealId) {
+                showStatus('status', 'Deal not registered on-chain yet. Contact seller.', 'error');
+                return;
+            }
+
+            try {
+                showStatus('status', 'Depositing USDC...', 'pending');
+
+                const tx = await escrowContract.deposit(onChainDealId);
+
+                showStatus('status', 'Waiting for confirmation...', 'pending');
+                await tx.wait();
+
+                document.getElementById('deposit-btn').disabled = true;
+                document.getElementById('deposit-btn').textContent = 'Deposited!';
+                document.getElementById('step3').classList.remove('active');
+                document.getElementById('step3').classList.add('completed');
+
+                showStatus('status', 'Deposit successful! Funds are locked in escrow.', 'success');
+
+            } catch (error) {
+                console.error(error);
+                showStatus('status', 'Deposit failed: ' + error.message, 'error');
+            }
+        }
+
+        function showStatus(elementId, message, type) {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.className = 'status ' + type;
+        }
+
+        function goBack() {
+            document.getElementById('deal-lookup').style.display = 'block';
+            document.getElementById('deposit-flow').style.display = 'none';
+            document.getElementById('lookup-status').textContent = '';
+            currentDeal = null;
+            onChainDealId = null;
+        }
+
+        // Check URL params for deal ID
+        window.onload = function() {
+            const params = new URLSearchParams(window.location.search);
+            const dealId = params.get('deal');
+            if (dealId) {
+                document.getElementById('deal-id-input').value = dealId;
+                lookupDeal();
+            }
+        }
+    </script>
+</body>
+</html>

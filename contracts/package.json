@@ -1,5 +1,5 @@
 {
-  "name": "bot",
+  "name": "contracts",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -10,10 +10,12 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^6.1.0",
+    "hardhat": "^2.28.3"
+  },
   "dependencies": {
-    "@supabase/supabase-js": "^2.91.1",
-    "dotenv": "^17.2.3",
-    "ethers": "^6.16.0",
-    "grammy": "^1.39.3"
+    "@openzeppelin/contracts": "^5.4.0",
+    "dotenv": "^17.2.3"
   }
 }
