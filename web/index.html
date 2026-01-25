@@ -508,6 +508,10 @@
                     <button class="btn btn-primary hidden" id="deposit-btn" onclick="depositUSDC()">
                         Deposit & Lock Funds
                     </button>
+
+                    <button class="btn btn-primary hidden" id="release-btn" onclick="releaseFunds()" style="background: linear-gradient(135deg, #00ff88, #00d9ff);">
+                        Release Funds to Seller
+                    </button>
                 </div>
 
                 <div id="action-alert"></div>
@@ -553,6 +557,7 @@
         // ABIs
         const ESCROW_ABI = [
             "function deposit(uint256 _dealId) external",
+            "function release(uint256 _dealId) external",
             "function getDealByExternalId(string) view returns (tuple(string,address,address,uint256,uint8,uint256,uint256))",
             "function externalIdToDealId(string) view returns (uint256)"
         ];
@@ -566,7 +571,8 @@
         let state = {
             deal: null,
             signer: null,
-            address: null
+            address: null,
+            action: 'deposit' // 'deposit' or 'release'
         };
 
         // Helpers
@@ -622,12 +628,27 @@
 
                 const deal = await contract.getDealByExternalId(input);
                 const status = deal[4];
+                const statuses = ['Pending', 'Funded', 'Completed', 'Refunded', 'Disputed', 'Cancelled'];
 
-                if (status !== 0) {
-                    const statuses = ['Pending', 'Funded', 'Completed', 'Refunded', 'Disputed', 'Cancelled'];
-                    showAlert('search-alert', `Deal is already "${statuses[status]}". Cannot deposit.`, 'warning');
-                    setLoading('search-btn', false);
-                    return;
+                // Check if this is a release action
+                const params = new URLSearchParams(window.location.search);
+                const actionParam = params.get('action');
+                state.action = actionParam === 'release' ? 'release' : 'deposit';
+
+                if (state.action === 'release') {
+                    // For release, deal must be Funded (status 1)
+                    if (status !== 1) {
+                        showAlert('search-alert', `Cannot release. Deal status is "${statuses[status]}".`, 'warning');
+                        setLoading('search-btn', false);
+                        return;
+                    }
+                } else {
+                    // For deposit, deal must be Pending (status 0)
+                    if (status !== 0) {
+                        showAlert('search-alert', `Deal is already "${statuses[status]}". Cannot deposit.`, 'warning');
+                        setLoading('search-btn', false);
+                        return;
+                    }
                 }
 
                 // Save deal info
@@ -644,6 +665,17 @@
                 $('disp-amount').textContent = ethers.utils.formatUnits(deal[3], 6);
                 $('disp-seller').textContent = short(deal[1]);
                 $('disp-buyer').textContent = short(deal[2]);
+
+                // Update UI for release vs deposit mode
+                if (state.action === 'release') {
+                    // Update status badge
+                    document.querySelector('.deal-status').textContent = 'Ready to Release';
+                    document.querySelector('.deal-status').style.background = 'rgba(0,255,136,0.2)';
+                    document.querySelector('.deal-status').style.color = '#00ff88';
+                    // Update step text
+                    $('step-2').querySelector('.step-text').textContent = 'Confirm';
+                    $('step-3').querySelector('.step-text').textContent = 'Release';
+                }
 
                 // Show deal section
                 hide('search-section');
@@ -749,56 +781,70 @@
                 // Update wallet display
                 $('wallet-addr').textContent = short(state.address);
 
-                // Check USDC balance
-                const usdc = new ethers.Contract(CONFIG.USDC, ERC20_ABI, state.signer);
-                const balance = await usdc.balanceOf(state.address);
-                const balanceNum = parseFloat(ethers.utils.formatUnits(balance, 6));
-                const requiredNum = parseFloat(ethers.utils.formatUnits(state.deal.amount, 6));
-
-                $('balance-val').textContent = `${balanceNum.toFixed(2)} USDC`;
-
-                if (balance.lt(state.deal.amount)) {
-                    $('balance-val').classList.add('balance-low');
-                    $('balance-val').classList.remove('balance-ok');
-                    showAlert('action-alert', `Insufficient balance! You need ${requiredNum} USDC.`, 'error');
+                // Handle release vs deposit flow
+                if (state.action === 'release') {
+                    // Release mode - just show the release button
                     hide('connect-section');
                     show('action-section');
-                    $('approve-btn').disabled = true;
-                    setLoading('connect-btn', false);
-                    return;
-                }
-
-                $('balance-val').classList.add('balance-ok');
-                $('balance-val').classList.remove('balance-low');
-
-                // Check allowance
-                const allowance = await usdc.allowance(state.address, CONFIG.CONTRACT);
-
-                hide('connect-section');
-                show('action-section');
-
-                if (allowance.gte(state.deal.amount)) {
-                    // Already approved, skip to deposit
                     hide('approve-btn');
-                    show('deposit-btn');
-                    setStep(3);
-
-                    // On mobile wallet browser, auto-prompt deposit after a short delay
-                    if (isWalletBrowser()) {
-                        showAlert('action-alert', 'USDC already approved! Tap the button below to deposit.', 'success');
-                    } else {
-                        showAlert('action-alert', 'USDC already approved. Ready to deposit!', 'success');
-                    }
-                } else {
-                    show('approve-btn');
                     hide('deposit-btn');
-                    setStep(2);
+                    show('release-btn');
+                    // Hide balance card for release
+                    document.querySelector('.balance-card').style.display = 'none';
+                    setStep(3);
+                    showAlert('action-alert', 'Ready to release funds to seller. Click the button below.', 'success');
+                } else {
+                    // Deposit mode - check balance and allowance
+                    const usdc = new ethers.Contract(CONFIG.USDC, ERC20_ABI, state.signer);
+                    const balance = await usdc.balanceOf(state.address);
+                    const balanceNum = parseFloat(ethers.utils.formatUnits(balance, 6));
+                    const requiredNum = parseFloat(ethers.utils.formatUnits(state.deal.amount, 6));
 
-                    // On mobile wallet browser, make it clearer what to do
-                    if (isWalletBrowser()) {
-                        showAlert('action-alert', 'Wallet connected! Tap "Approve USDC" to continue.', 'success');
+                    $('balance-val').textContent = `${balanceNum.toFixed(2)} USDC`;
+
+                    if (balance.lt(state.deal.amount)) {
+                        $('balance-val').classList.add('balance-low');
+                        $('balance-val').classList.remove('balance-ok');
+                        showAlert('action-alert', `Insufficient balance! You need ${requiredNum} USDC.`, 'error');
+                        hide('connect-section');
+                        show('action-section');
+                        $('approve-btn').disabled = true;
+                        setLoading('connect-btn', false);
+                        return;
+                    }
+
+                    $('balance-val').classList.add('balance-ok');
+                    $('balance-val').classList.remove('balance-low');
+
+                    // Check allowance
+                    const allowance = await usdc.allowance(state.address, CONFIG.CONTRACT);
+
+                    hide('connect-section');
+                    show('action-section');
+
+                    if (allowance.gte(state.deal.amount)) {
+                        // Already approved, skip to deposit
+                        hide('approve-btn');
+                        show('deposit-btn');
+                        setStep(3);
+
+                        // On mobile wallet browser, auto-prompt deposit after a short delay
+                        if (isWalletBrowser()) {
+                            showAlert('action-alert', 'USDC already approved! Tap the button below to deposit.', 'success');
+                        } else {
+                            showAlert('action-alert', 'USDC already approved. Ready to deposit!', 'success');
+                        }
                     } else {
-                        showAlert('action-alert', 'Wallet connected! Now approve USDC.', 'success');
+                        show('approve-btn');
+                        hide('deposit-btn');
+                        setStep(2);
+
+                        // On mobile wallet browser, make it clearer what to do
+                        if (isWalletBrowser()) {
+                            showAlert('action-alert', 'Wallet connected! Tap "Approve USDC" to continue.', 'success');
+                        } else {
+                            showAlert('action-alert', 'Wallet connected! Now approve USDC.', 'success');
+                        }
                     }
                 }
 
@@ -871,16 +917,60 @@
             setLoading('deposit-btn', false);
         }
 
+        // Release Funds (buyer releases to seller)
+        async function releaseFunds() {
+            setLoading('release-btn', true);
+            showAlert('action-alert', 'Confirm release in your wallet...', 'info');
+
+            try {
+                const escrow = new ethers.Contract(CONFIG.CONTRACT, ESCROW_ABI, state.signer);
+                const tx = await escrow.release(state.deal.chainId);
+
+                showAlert('action-alert', 'Processing release...', 'info');
+                await tx.wait();
+
+                // Success!
+                $('success-deal').textContent = state.deal.id;
+                const amount = ethers.utils.formatUnits(state.deal.amount, 6);
+                const fee = (parseFloat(amount) * 0.015).toFixed(2);
+                const sellerReceives = (parseFloat(amount) - parseFloat(fee)).toFixed(2);
+                $('success-amount').textContent = `${sellerReceives} USDC (after 1.5% fee)`;
+                $('tx-link').href = `${CONFIG.EXPLORER}/tx/${tx.hash}`;
+
+                // Update success section text for release
+                document.querySelector('.success-icon').textContent = '💸';
+                document.querySelector('#success-section h2').textContent = 'Funds Released!';
+                document.querySelector('#success-section p').textContent = 'Payment has been sent to the seller.';
+
+                hide('deal-section');
+                show('success-section');
+
+            } catch (e) {
+                console.error(e);
+                if (e.code === 4001) {
+                    showAlert('action-alert', 'Transaction cancelled', 'warning');
+                } else {
+                    showAlert('action-alert', 'Release failed: ' + (e.reason || e.message), 'error');
+                }
+            }
+
+            setLoading('release-btn', false);
+        }
+
         // Go back
         function goBack() {
             hide('deal-section');
             show('search-section');
             hide('action-section');
             show('connect-section');
+            hide('release-btn');
             clearAlert('action-alert');
             setStep(1);
             state.signer = null;
             state.address = null;
+            state.action = 'deposit';
+            // Reset balance card visibility
+            document.querySelector('.balance-card').style.display = 'block';
         }
 
         // Generate QR code for current page

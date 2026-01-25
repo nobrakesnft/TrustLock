@@ -26,7 +26,6 @@ const ESCROW_ABI = [
   "function getReputation(address _user) external view returns (uint256 completed, uint256 volume)",
   "function externalIdToDealId(string calldata) external view returns (uint256)",
   "function deals(uint256) external view returns (string, address, address, uint256, uint8, uint256, uint256)",
-  "function releaseFunds(uint256 _dealId) external",
   "event DealFunded(uint256 indexed dealId, address buyer, uint256 amount)",
   "event DealCompleted(uint256 indexed dealId, address seller, uint256 amount, uint256 fee)"
 ];
@@ -447,44 +446,28 @@ To confirm, use: /release ${dealId} confirm
     return;
   }
 
-  // First, release funds on-chain
-  await ctx.reply('Releasing funds on blockchain... Please wait.');
+  // Generate release link - buyer must release from their own wallet
+  const releaseLink = `https://nobrakesnft.github.io/TrustLock?deal=${dealId}&action=release`;
 
-  try {
-    // Get the on-chain deal ID
-    const chainDealId = await escrowContract.externalIdToDealId(dealId);
+  await ctx.reply(`
+📤 Release Funds
 
-    if (chainDealId.toString() === '0') {
-      await ctx.reply('Error: Deal not found on blockchain. Contact @nobrakesnft for help.');
-      return;
-    }
+Deal: ${dealId}
+Amount: ${deal.amount} USDC
 
-    // Call releaseFunds on the smart contract
-    const tx = await escrowContract.releaseFunds(chainDealId);
-    await ctx.reply(`Transaction sent! Tx: https://sepolia.basescan.org/tx/${tx.hash}\n\nWaiting for confirmation...`);
+To release funds to the seller, you must sign the transaction from your wallet.
 
-    await tx.wait();
+👇 TAP TO RELEASE:
+${releaseLink}
 
-    // Update database after successful on-chain release
-    const { error: updateError } = await supabase
-      .from('deals')
-      .update({
-        status: 'completed',
-        completed_at: new Date().toISOString(),
-        release_tx_hash: tx.hash,
-        dispute_cancelled_by: deal.status === 'disputed' ? username : null
-      })
-      .eq('deal_id', dealId);
+1. Click the link above
+2. Connect your wallet (same one used to deposit)
+3. Click "Release Funds"
+4. Confirm the transaction
 
-    if (updateError) {
-      console.error('Database update error:', updateError);
-    }
-
-  } catch (error) {
-    console.error('Release error:', error);
-    await ctx.reply(`Failed to release funds: ${error.reason || error.message}\n\nIf you believe this is an error, contact @nobrakesnft`);
-    return;
-  }
+This ensures only YOU can authorize the payment.
+  `);
+  return;
 
   const fee = (deal.amount * 0.015).toFixed(2);
   const sellerReceives = (deal.amount - fee).toFixed(2);
