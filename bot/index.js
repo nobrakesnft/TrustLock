@@ -26,6 +26,7 @@ const ESCROW_ABI = [
   "function getReputation(address _user) external view returns (uint256 completed, uint256 volume)",
   "function externalIdToDealId(string calldata) external view returns (uint256)",
   "function deals(uint256) external view returns (string, address, address, uint256, uint8, uint256, uint256)",
+  "function releaseFunds(uint256 _dealId) external",
   "event DealFunded(uint256 indexed dealId, address buyer, uint256 amount)",
   "event DealCompleted(uint256 indexed dealId, address seller, uint256 amount, uint256 fee)"
 ];
@@ -446,17 +447,42 @@ To confirm, use: /release ${dealId} confirm
     return;
   }
 
-  const { error: updateError } = await supabase
-    .from('deals')
-    .update({
-      status: 'completed',
-      completed_at: new Date().toISOString(),
-      dispute_cancelled_by: deal.status === 'disputed' ? username : null
-    })
-    .eq('deal_id', dealId);
+  // First, release funds on-chain
+  await ctx.reply('Releasing funds on blockchain... Please wait.');
 
-  if (updateError) {
-    await ctx.reply('Failed to release funds. Try again.');
+  try {
+    // Get the on-chain deal ID
+    const chainDealId = await escrowContract.externalIdToDealId(dealId);
+
+    if (chainDealId.toString() === '0') {
+      await ctx.reply('Error: Deal not found on blockchain. Contact @nobrakesnft for help.');
+      return;
+    }
+
+    // Call releaseFunds on the smart contract
+    const tx = await escrowContract.releaseFunds(chainDealId);
+    await ctx.reply(`Transaction sent! Tx: https://sepolia.basescan.org/tx/${tx.hash}\n\nWaiting for confirmation...`);
+
+    await tx.wait();
+
+    // Update database after successful on-chain release
+    const { error: updateError } = await supabase
+      .from('deals')
+      .update({
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        release_tx_hash: tx.hash,
+        dispute_cancelled_by: deal.status === 'disputed' ? username : null
+      })
+      .eq('deal_id', dealId);
+
+    if (updateError) {
+      console.error('Database update error:', updateError);
+    }
+
+  } catch (error) {
+    console.error('Release error:', error);
+    await ctx.reply(`Failed to release funds: ${error.reason || error.message}\n\nIf you believe this is an error, contact @nobrakesnft`);
     return;
   }
 
