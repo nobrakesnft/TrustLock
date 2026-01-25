@@ -532,8 +532,8 @@
                 setStep(1);
 
             } catch (e) {
-                console.error(e);
-                showAlert('search-alert', 'Error finding deal. Try again.', 'error');
+                console.error('Search error:', e);
+                showAlert('search-alert', 'Error: ' + (e.reason || e.message || 'Connection failed. Check your internet.'), 'error');
             }
 
             setLoading('search-btn', false);
