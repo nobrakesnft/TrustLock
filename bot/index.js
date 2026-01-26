@@ -1,4 +1,4 @@
-// TrustLock Bot v3.0 - Admin Panel
+// TrustLock Bot v3.1 - Admin Panel (Fixed)
 require('dotenv').config();
 
 const { Bot } = require('grammy');
@@ -36,7 +36,6 @@ function generateDealId() {
   return `TL-${code}`;
 }
 
-// Get deal with case-insensitive matching
 async function getDeal(dealId) {
   const normalized = dealId.toUpperCase().trim();
   const { data, error } = await supabase
@@ -47,30 +46,30 @@ async function getDeal(dealId) {
   return { deal: data, error };
 }
 
-// Check if user is botmaster
 function isBotmaster(username) {
   return BOTMASTER_USERNAMES.includes(username?.toLowerCase());
 }
 
-// Check if user is moderator
 async function isModerator(telegramId) {
-  const { data } = await supabase
-    .from('moderators')
-    .select('*')
-    .eq('telegram_id', telegramId)
-    .eq('is_active', true)
-    .single();
-  return !!data;
+  try {
+    const { data } = await supabase
+      .from('moderators')
+      .select('*')
+      .eq('telegram_id', telegramId)
+      .eq('is_active', true)
+      .single();
+    return !!data;
+  } catch (e) {
+    return false;
+  }
 }
 
-// Check if user is any admin (botmaster or moderator)
 async function isAnyAdmin(ctx) {
   if (isBotmaster(ctx.from.username)) return { isAdmin: true, role: 'botmaster' };
   if (await isModerator(ctx.from.id)) return { isAdmin: true, role: 'moderator' };
   return { isAdmin: false, role: null };
 }
 
-// Log admin action
 async function logAdminAction(action, dealId, adminTelegramId, adminUsername, targetUser, details) {
   try {
     await supabase.from('admin_logs').insert({
@@ -82,18 +81,16 @@ async function logAdminAction(action, dealId, adminTelegramId, adminUsername, ta
       details
     });
   } catch (e) {
-    console.error('Failed to log admin action:', e.message);
+    console.error('Log error:', e.message);
   }
 }
 
-// Notify parties about dispute status (without revealing admin identity)
 async function notifyParties(deal, message) {
   try {
     if (deal.seller_telegram_id) {
       await bot.api.sendMessage(deal.seller_telegram_id, message);
     }
   } catch (e) {}
-
   try {
     const { data: buyerUser } = await supabase.from('users').select('telegram_id').ilike('username', deal.buyer_username).single();
     if (buyerUser?.telegram_id) {
@@ -102,92 +99,65 @@ async function notifyParties(deal, message) {
   } catch (e) {}
 }
 
+// Get on-chain deal status
+async function getOnChainStatus(dealId) {
+  try {
+    const chainId = await escrowContract.externalIdToDealId(dealId);
+    if (chainId.toString() === '0') return { exists: false };
+    const deal = await escrowContract.deals(chainId);
+    // Status: 0=Pending, 1=Funded, 2=Completed, 3=Refunded, 4=Disputed, 5=Cancelled
+    return { exists: true, chainId, status: Number(deal[4]) };
+  } catch (e) {
+    return { exists: false, error: e.message };
+  }
+}
+
 // ============ USER COMMANDS ============
 
-// /start
 bot.command('start', async (ctx) => {
   const param = ctx.message.text.split(' ')[1]?.toLowerCase();
 
   if (param === 'newdeal') {
-    await ctx.reply(`
-💰 CREATE A NEW DEAL
-
-Step 1️⃣ - Register your wallet (one time):
-/wallet 0xYourWalletAddress
-
-Step 2️⃣ - Create the deal:
-/new @buyerUsername amount description
-
-Example:
-/new @john 50 Logo design work
-
-Need help? /help
-    `);
-    return;
+    return ctx.reply(`💰 CREATE A NEW DEAL\n\nStep 1: /wallet 0xYourAddress\nStep 2: /new @buyer 50 Description\n\nNeed help? /help`);
   }
 
   if (param?.startsWith('dispute_')) {
     const dealId = param.replace('dispute_', '').toUpperCase();
-    await ctx.reply(`
-⚠️ Open Dispute for ${dealId}
-
-Command: /dispute ${dealId} [reason]
-
-Example:
-/dispute ${dealId} Seller not responding
-    `);
-    return;
+    return ctx.reply(`⚠️ Open Dispute for ${dealId}\n\nCommand: /dispute ${dealId} [reason]`);
   }
 
-  await ctx.reply(`
-🔒 TrustLock - Secure Crypto Escrow
-
-How it works:
-1. Seller: /new @buyer 50 Logo design
-2. Buyer: /fund TL-XXXX → deposits USDC
-3. Seller delivers goods/service
-4. Buyer: /release TL-XXXX → pays seller
-
-Commands: /help
-Network: Base Sepolia
-  `);
+  await ctx.reply(`🔒 TrustLock - Secure Crypto Escrow\n\n1. Seller: /new @buyer 50 desc\n2. Buyer: /fund TL-XXXX\n3. Deliver goods\n4. Buyer: /release TL-XXXX\n\nCommands: /help`);
 });
 
-// /help
 bot.command('help', async (ctx) => {
-  const { isAdmin, role } = await isAnyAdmin(ctx);
-
+  const { role } = await isAnyAdmin(ctx);
   let adminNote = '';
   if (role === 'botmaster') adminNote = '\n\n👑 Botmaster: /adminhelp';
   else if (role === 'moderator') adminNote = '\n\n🛡️ Moderator: /modhelp';
 
-  await ctx.reply(`
-📖 TrustLock Commands
+  await ctx.reply(`📖 TrustLock Commands
 
-SETUP
-/wallet 0x... - Register wallet
+SETUP: /wallet 0x...
 
 DEALS
-/new @buyer 100 desc - Create deal
-/fund TL-XXXX - Deposit link
-/status TL-XXXX - Check status
-/deals - Your deals
-/release TL-XXXX - Pay seller
-/cancel TL-XXXX - Cancel
+/new @buyer 100 desc
+/fund TL-XXXX
+/status TL-XXXX
+/deals
+/release TL-XXXX
+/cancel TL-XXXX
 
 DISPUTES
-/dispute TL-XXXX reason - Open dispute
-/evidence TL-XXXX msg - Add evidence
-/viewevidence TL-XXXX - View evidence
-/canceldispute TL-XXXX - Cancel dispute
+/dispute TL-XXXX reason
+/evidence TL-XXXX msg
+/viewevidence TL-XXXX
+/canceldispute TL-XXXX
 
 RATINGS
-/review TL-XXXX 5 Great! - Leave review
-/rep @user - Check reputation${adminNote}
-  `);
+/review TL-XXXX 5 Great!
+/rep @user${adminNote}`);
 });
 
-// /wallet
 bot.command('wallet', async (ctx) => {
   const userId = ctx.from.id;
   const username = ctx.from.username || 'Anonymous';
@@ -195,8 +165,7 @@ bot.command('wallet', async (ctx) => {
 
   if (!match) {
     const { data: user } = await supabase.from('users').select('wallet_address').eq('telegram_id', userId).single();
-    await ctx.reply(user?.wallet_address ? `Your wallet: ${user.wallet_address}` : 'Usage: /wallet 0xYourAddress');
-    return;
+    return ctx.reply(user?.wallet_address ? `Your wallet: ${user.wallet_address}` : 'Usage: /wallet 0xYourAddress');
   }
 
   const { error } = await supabase.from('users').upsert({
@@ -205,19 +174,15 @@ bot.command('wallet', async (ctx) => {
     wallet_address: match[1].toLowerCase()
   }, { onConflict: 'telegram_id' });
 
-  await ctx.reply(error ? 'Failed to save.' : `✅ Wallet registered: ${match[1]}`);
+  await ctx.reply(error ? `Failed: ${error.message}` : `✅ Wallet registered: ${match[1]}`);
 });
 
-// /new
 bot.command('new', async (ctx) => {
   const senderId = ctx.from.id;
   const senderUsername = ctx.from.username || 'Anonymous';
   const match = ctx.message.text.match(/^\/new\s+@(\w+)\s+(\d+(?:\.\d+)?)\s+(.+)$/i);
 
-  if (!match) {
-    await ctx.reply('Format: /new @buyer amount description\nExample: /new @john 50 Logo design');
-    return;
-  }
+  if (!match) return ctx.reply('Format: /new @buyer 50 description');
 
   const [, buyerUsername, amountStr, description] = match;
   const amount = parseFloat(amountStr);
@@ -239,21 +204,11 @@ bot.command('new', async (ctx) => {
     status: 'pending_deposit'
   });
 
-  if (error) return ctx.reply('Failed to create deal.');
+  if (error) return ctx.reply(`Failed: ${error.message}`);
 
-  await ctx.reply(`
-✅ Deal Created: ${dealId}
-
-Seller: @${senderUsername}
-Buyer: @${buyerUsername}
-Amount: ${amount} USDC
-Desc: ${description}
-
-@${buyerUsername} → /fund ${dealId}
-  `);
+  await ctx.reply(`✅ Deal Created: ${dealId}\n\nSeller: @${senderUsername}\nBuyer: @${buyerUsername}\nAmount: ${amount} USDC\n\n@${buyerUsername} → /fund ${dealId}`);
 });
 
-// /status
 bot.command('status', async (ctx) => {
   const match = ctx.message.text.match(/^\/status\s+(TL-\w+)$/i);
   if (!match) return ctx.reply('Usage: /status TL-XXXX');
@@ -263,38 +218,27 @@ bot.command('status', async (ctx) => {
 
   const emoji = { pending_deposit: '⏳', funded: '💰', completed: '✅', disputed: '⚠️', cancelled: '❌', refunded: '↩️' }[deal.status] || '❓';
 
-  let disputeInfo = '';
+  let extra = '';
   if (deal.status === 'disputed') {
-    disputeInfo = `\n\n⚠️ DISPUTED\nReason: ${deal.dispute_reason || 'N/A'}`;
-    if (deal.assigned_to_username) {
-      disputeInfo += '\nStatus: Being reviewed by Admin Team';
-    } else {
-      disputeInfo += '\nStatus: Awaiting admin assignment';
-    }
+    extra = `\n\n⚠️ DISPUTED\nReason: ${deal.dispute_reason || 'N/A'}`;
+    extra += deal.assigned_to_username ? '\nStatus: Being reviewed' : '\nStatus: Awaiting review';
   }
 
-  await ctx.reply(`
-${emoji} ${deal.deal_id} - ${deal.status.replace('_', ' ').toUpperCase()}
-
-Seller: @${deal.seller_username}
-Buyer: @${deal.buyer_username}
-Amount: ${deal.amount} USDC
-Desc: ${deal.description}${disputeInfo}
-  `);
+  await ctx.reply(`${emoji} ${deal.deal_id} - ${deal.status.toUpperCase()}\n\nSeller: @${deal.seller_username}\nBuyer: @${deal.buyer_username}\nAmount: ${deal.amount} USDC\nDesc: ${deal.description}${extra}`);
 });
 
-// /deals
 bot.command('deals', async (ctx) => {
   const userId = ctx.from.id;
   const username = ctx.from.username;
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('deals')
     .select('*')
     .or(`seller_telegram_id.eq.${userId},buyer_username.ilike.${username}`)
     .order('created_at', { ascending: false })
     .limit(10);
 
+  if (error) return ctx.reply(`Error: ${error.message}`);
   if (!data?.length) return ctx.reply('No deals. Create: /new');
 
   let msg = 'Your Deals:\n\n';
@@ -303,10 +247,9 @@ bot.command('deals', async (ctx) => {
     const role = d.seller_telegram_id === userId ? 'S' : 'B';
     msg += `${emoji} ${d.deal_id} | ${d.amount} USDC | ${role}\n`;
   }
-  await ctx.reply(msg + '\n/status TL-XXXX for details');
+  await ctx.reply(msg);
 });
 
-// /fund
 bot.command('fund', async (ctx) => {
   const username = ctx.from.username;
   const match = ctx.message.text.match(/^\/fund\s+(TL-\w+)$/i);
@@ -320,7 +263,7 @@ bot.command('fund', async (ctx) => {
   const { data: sellerUser } = await supabase.from('users').select('wallet_address').eq('telegram_id', deal.seller_telegram_id).single();
   const { data: buyerUser } = await supabase.from('users').select('wallet_address').ilike('username', username).single();
 
-  if (!sellerUser?.wallet_address) return ctx.reply(`Seller needs wallet: /wallet`);
+  if (!sellerUser?.wallet_address) return ctx.reply('Seller needs wallet first.');
   if (!buyerUser?.wallet_address) return ctx.reply('Register wallet: /wallet 0xYourAddress');
 
   try {
@@ -340,11 +283,10 @@ bot.command('fund', async (ctx) => {
     await supabase.from('deals').update({ contract_deal_id: deal.deal_id, tx_hash: tx.hash }).ilike('deal_id', deal.deal_id);
     await ctx.reply(`✅ Ready!\n\n👇 TAP TO DEPOSIT:\nhttps://nobrakesnft.github.io/TrustLock?deal=${deal.deal_id}`);
   } catch (e) {
-    await ctx.reply(`Failed: ${e.message}`);
+    await ctx.reply(`Failed: ${e.shortMessage || e.message}`);
   }
 });
 
-// /release
 bot.command('release', async (ctx) => {
   const username = ctx.from.username;
   const match = ctx.message.text.match(/^\/release\s+(TL-\w+)(?:\s+(confirm))?$/i);
@@ -354,28 +296,17 @@ bot.command('release', async (ctx) => {
   if (!deal) return ctx.reply('Deal not found.');
   if (deal.buyer_username.toLowerCase() !== username?.toLowerCase()) return ctx.reply('Only buyer can release.');
 
-  const forceConfirm = match[2]?.toLowerCase() === 'confirm';
-
-  if (deal.status === 'disputed' && !forceConfirm) {
+  if (deal.status === 'disputed' && !match[2]) {
     return ctx.reply(`⚠️ Deal is disputed!\n\nTo release anyway: /release ${deal.deal_id} confirm`);
   }
 
   if (deal.status !== 'funded' && deal.status !== 'disputed') {
-    return ctx.reply(`Cannot release. Current status: ${deal.status}`);
+    return ctx.reply(`Cannot release. Status: ${deal.status}`);
   }
 
-  await ctx.reply(`
-📤 Release Funds
-
-Deal: ${deal.deal_id}
-Amount: ${deal.amount} USDC
-
-👇 TAP TO RELEASE:
-https://nobrakesnft.github.io/TrustLock?deal=${deal.deal_id}&action=release
-  `);
+  await ctx.reply(`📤 Release: ${deal.deal_id}\nAmount: ${deal.amount} USDC\n\n👇 TAP TO RELEASE:\nhttps://nobrakesnft.github.io/TrustLock?deal=${deal.deal_id}&action=release`);
 });
 
-// /cancel
 bot.command('cancel', async (ctx) => {
   const userId = ctx.from.id;
   const username = ctx.from.username;
@@ -390,12 +321,11 @@ bot.command('cancel', async (ctx) => {
   if (!isSeller && !isBuyer) return ctx.reply('Not your deal.');
   if (!['pending_deposit', 'funded'].includes(deal.status)) return ctx.reply(`Cannot cancel. Status: ${deal.status}`);
 
-  const { error } = await supabase.from('deals').update({ status: 'cancelled' }).ilike('deal_id', deal.deal_id);
-  if (error) return ctx.reply('Failed to cancel. Try again.');
-  await ctx.reply(`❌ ${deal.deal_id} cancelled.${deal.status === 'funded' ? '\nContact admin for on-chain refund.' : ''}`);
+  await supabase.from('deals').update({ status: 'cancelled' }).ilike('deal_id', deal.deal_id);
+  await ctx.reply(`❌ ${deal.deal_id} cancelled.`);
 });
 
-// /dispute - FIXED: now stores telegram_id too
+// /dispute - Opens dispute and marks on-chain
 bot.command('dispute', async (ctx) => {
   const userId = ctx.from.id;
   const username = ctx.from.username || `user_${userId}`;
@@ -408,11 +338,31 @@ bot.command('dispute', async (ctx) => {
   const isSeller = deal.seller_telegram_id === userId;
   const isBuyer = deal.buyer_username.toLowerCase() === username?.toLowerCase();
   if (!isSeller && !isBuyer) return ctx.reply('Not your deal.');
-  if (deal.status !== 'funded') return ctx.reply(`Cannot dispute. Current status: ${deal.status}\n\nOnly funded deals can be disputed.`);
+  if (deal.status !== 'funded') return ctx.reply(`Cannot dispute. Status: ${deal.status}`);
 
   const reason = match[2] || 'No reason provided';
 
-  // Update status - store both username AND telegram_id
+  // Mark as disputed on-chain FIRST
+  try {
+    const chainId = await escrowContract.externalIdToDealId(deal.deal_id);
+    if (chainId.toString() !== '0') {
+      const onChain = await escrowContract.deals(chainId);
+      const onChainStatus = Number(onChain[4]);
+
+      // Only call dispute if not already disputed on-chain (status 4)
+      if (onChainStatus === 1) { // Funded
+        await ctx.reply('Marking dispute on-chain...');
+        const tx = await escrowContract.dispute(chainId);
+        await tx.wait();
+        await ctx.reply('✅ On-chain dispute recorded.');
+      }
+    }
+  } catch (e) {
+    console.error('On-chain dispute error:', e.message);
+    // Continue anyway - we can still track in DB
+  }
+
+  // Update database
   const { error } = await supabase.from('deals').update({
     status: 'disputed',
     disputed_by: username,
@@ -421,70 +371,30 @@ bot.command('dispute', async (ctx) => {
     disputed_at: new Date().toISOString()
   }).ilike('deal_id', deal.deal_id);
 
-  if (error) {
-    console.error('Dispute update error:', error);
-    return ctx.reply('Failed to open dispute. Try again.');
-  }
+  if (error) return ctx.reply(`Failed: ${error.message}`);
 
-  await ctx.reply(`
-⚠️ DISPUTE OPENED
-
-Deal: ${deal.deal_id}
-Reason: ${reason}
-
-Your dispute is now being reviewed by the Admin Team.
-
-NEXT STEPS:
-• /evidence ${deal.deal_id} [your proof]
-• Send photos with caption: ${deal.deal_id} description
-• /viewevidence ${deal.deal_id}
-
-You'll be notified when an admin responds.
-  `);
+  await ctx.reply(`⚠️ DISPUTE OPENED\n\nDeal: ${deal.deal_id}\nReason: ${reason}\n\nAdmin Team will review.\n\nSubmit evidence: /evidence ${deal.deal_id} [msg]`);
 
   // Notify other party
   const { data: buyerUser } = await supabase.from('users').select('telegram_id').ilike('username', deal.buyer_username).single();
   const otherPartyId = isSeller ? buyerUser?.telegram_id : deal.seller_telegram_id;
-
   if (otherPartyId) {
     try {
-      await bot.api.sendMessage(otherPartyId, `
-⚠️ DISPUTE on ${deal.deal_id}
-
-The other party has opened a dispute.
-Reason: ${reason}
-
-The Admin Team will review this case.
-
-Submit your evidence: /evidence ${deal.deal_id} [msg]
-Or send photos with caption: ${deal.deal_id} description
-      `);
+      await bot.api.sendMessage(otherPartyId, `⚠️ DISPUTE on ${deal.deal_id}\n\nReason: ${reason}\n\nSubmit evidence: /evidence ${deal.deal_id} [msg]`);
     } catch (e) {}
   }
 
-  // Notify all botmasters
+  // Notify botmasters
   for (const admin of BOTMASTER_USERNAMES) {
     const { data: adminUser } = await supabase.from('users').select('telegram_id').ilike('username', admin).single();
     if (adminUser?.telegram_id) {
       try {
-        await bot.api.sendMessage(adminUser.telegram_id, `
-🔔 NEW DISPUTE: ${deal.deal_id}
-
-Amount: ${deal.amount} USDC
-Seller: @${deal.seller_username}
-Buyer: @${deal.buyer_username}
-By: @${username}
-Reason: ${reason}
-
-/assign ${deal.deal_id} @moderator
-/resolve ${deal.deal_id} release|refund
-        `);
+        await bot.api.sendMessage(adminUser.telegram_id, `🔔 DISPUTE: ${deal.deal_id}\n\n${deal.amount} USDC\n@${deal.seller_username} vs @${deal.buyer_username}\nBy: @${username}\nReason: ${reason}\n\n/disputes to view all`);
       } catch (e) {}
     }
   }
 });
 
-// /evidence
 bot.command('evidence', async (ctx) => {
   const userId = ctx.from.id;
   const username = ctx.from.username;
@@ -494,22 +404,19 @@ bot.command('evidence', async (ctx) => {
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
-  if (deal.status !== 'disputed') {
-    return ctx.reply(`Cannot submit evidence.\n\nDeal status: ${deal.status}\nOnly disputed deals accept evidence.`);
-  }
+  if (deal.status !== 'disputed') return ctx.reply(`Deal not disputed. Status: ${deal.status}`);
 
   const evidence = match[2];
-  if (!evidence) return ctx.reply(`Usage: /evidence ${deal.deal_id} your message here`);
+  if (!evidence) return ctx.reply(`Usage: /evidence ${deal.deal_id} your message`);
 
   const isSeller = deal.seller_telegram_id === userId;
   const isBuyer = deal.buyer_username.toLowerCase() === username?.toLowerCase();
   const { isAdmin } = await isAnyAdmin(ctx);
-
   if (!isSeller && !isBuyer && !isAdmin) return ctx.reply('Not your deal.');
 
   const role = isSeller ? 'Seller' : (isBuyer ? 'Buyer' : 'Admin');
 
-  const { error: insertError } = await supabase.from('evidence').insert({
+  const { error } = await supabase.from('evidence').insert({
     deal_id: deal.deal_id,
     submitted_by: username,
     role,
@@ -517,46 +424,21 @@ bot.command('evidence', async (ctx) => {
     telegram_id: userId
   });
 
-  if (insertError) {
-    console.error('Evidence insert error:', insertError);
-    return ctx.reply(`Failed to save evidence: ${insertError.message}`);
-  }
-
+  if (error) return ctx.reply(`Failed: ${error.message}`);
   await ctx.reply(`✅ Evidence submitted for ${deal.deal_id}`);
-
-  // Forward to assigned moderator or botmasters
-  if (deal.assigned_to_telegram_id) {
-    try {
-      await bot.api.sendMessage(deal.assigned_to_telegram_id, `📋 Evidence: ${deal.deal_id}\nFrom: @${username} (${role})\n"${evidence}"`);
-    } catch (e) {}
-  } else {
-    for (const admin of BOTMASTER_USERNAMES) {
-      const { data: adminUser } = await supabase.from('users').select('telegram_id').ilike('username', admin).single();
-      if (adminUser?.telegram_id && adminUser.telegram_id !== userId) {
-        try {
-          await bot.api.sendMessage(adminUser.telegram_id, `📋 Evidence: ${deal.deal_id}\nFrom: @${username} (${role})\n"${evidence}"`);
-        } catch (e) {}
-      }
-    }
-  }
 });
 
-// Photo evidence handler
 bot.on('message:photo', async (ctx) => {
   const userId = ctx.from.id;
   const username = ctx.from.username;
   const caption = ctx.message.caption || '';
 
   const match = caption.match(/^(TL-\w+)(?:\s+(.*))?$/i);
-  if (!match) {
-    return ctx.reply(`📸 To submit photo evidence:\n\nSend photo with caption: TL-XXXX description`);
-  }
+  if (!match) return ctx.reply(`📸 Photo evidence: Send with caption TL-XXXX description`);
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
-  if (deal.status !== 'disputed') {
-    return ctx.reply(`Cannot submit evidence. Deal status: ${deal.status}`);
-  }
+  if (deal.status !== 'disputed') return ctx.reply(`Deal not disputed. Status: ${deal.status}`);
 
   const isSeller = deal.seller_telegram_id === userId;
   const isBuyer = deal.buyer_username.toLowerCase() === username?.toLowerCase();
@@ -564,43 +446,22 @@ bot.on('message:photo', async (ctx) => {
   if (!isSeller && !isBuyer && !isAdmin) return ctx.reply('Not your deal.');
 
   const role = isSeller ? 'Seller' : (isBuyer ? 'Buyer' : 'Admin');
-  const description = match[2]?.trim() || 'Photo evidence';
   const photo = ctx.message.photo[ctx.message.photo.length - 1];
 
-  const { error: insertError } = await supabase.from('evidence').insert({
+  const { error } = await supabase.from('evidence').insert({
     deal_id: deal.deal_id,
     submitted_by: username,
     role,
-    content: description,
+    content: match[2]?.trim() || 'Photo',
     file_id: photo.file_id,
     file_type: 'photo',
     telegram_id: userId
   });
 
-  if (insertError) {
-    return ctx.reply(`Failed to save photo: ${insertError.message}`);
-  }
-
+  if (error) return ctx.reply(`Failed: ${error.message}`);
   await ctx.reply(`✅ Photo evidence submitted for ${deal.deal_id}`);
-
-  // Forward to assigned mod or botmasters
-  if (deal.assigned_to_telegram_id) {
-    try {
-      await bot.api.sendPhoto(deal.assigned_to_telegram_id, photo.file_id, { caption: `📸 ${deal.deal_id}\nFrom: @${username} (${role})\n"${description}"` });
-    } catch (e) {}
-  } else {
-    for (const admin of BOTMASTER_USERNAMES) {
-      const { data: adminUser } = await supabase.from('users').select('telegram_id').ilike('username', admin).single();
-      if (adminUser?.telegram_id && adminUser.telegram_id !== userId) {
-        try {
-          await bot.api.sendPhoto(adminUser.telegram_id, photo.file_id, { caption: `📸 ${deal.deal_id}\nFrom: @${username} (${role})\n"${description}"` });
-        } catch (e) {}
-      }
-    }
-  }
 });
 
-// /viewevidence
 bot.command('viewevidence', async (ctx) => {
   const match = ctx.message.text.match(/^\/viewevidence\s+(TL-\w+)$/i);
   if (!match) return ctx.reply('Usage: /viewevidence TL-XXXX');
@@ -608,31 +469,24 @@ bot.command('viewevidence', async (ctx) => {
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
 
-  const { data: evidence } = await supabase.from('evidence').select('*').ilike('deal_id', deal.deal_id).order('created_at', { ascending: true });
+  const { data: evidence, error } = await supabase.from('evidence').select('*').ilike('deal_id', deal.deal_id).order('created_at', { ascending: true });
 
-  if (!evidence?.length) {
-    return ctx.reply(`📋 Evidence: ${deal.deal_id}\nStatus: ${deal.status}\n\nNo evidence yet.`);
-  }
+  if (error) return ctx.reply(`Error: ${error.message}`);
+  if (!evidence?.length) return ctx.reply(`No evidence for ${deal.deal_id}`);
 
-  let msg = `📋 Evidence: ${deal.deal_id}\nStatus: ${deal.status}\nReason: ${deal.dispute_reason || 'N/A'}\n\n`;
-
+  let msg = `📋 Evidence: ${deal.deal_id}\nReason: ${deal.dispute_reason || 'N/A'}\n\n`;
   for (const e of evidence) {
-    const icon = e.file_type === 'photo' ? '📸' : '📝';
-    msg += `${icon} [${e.role}] @${e.submitted_by}\n"${e.content}"\n\n`;
+    msg += `${e.file_type === 'photo' ? '📸' : '📝'} [${e.role}] @${e.submitted_by}: "${e.content}"\n\n`;
   }
-
   await ctx.reply(msg);
 
   for (const e of evidence) {
-    if (e.file_id && e.file_type === 'photo') {
-      try {
-        await bot.api.sendPhoto(ctx.chat.id, e.file_id, { caption: `[${e.role}] @${e.submitted_by}` });
-      } catch (err) {}
+    if (e.file_id) {
+      try { await bot.api.sendPhoto(ctx.chat.id, e.file_id, { caption: `[${e.role}] @${e.submitted_by}` }); } catch (err) {}
     }
   }
 });
 
-// /canceldispute - FIXED: check by telegram_id OR username, allow admins
 bot.command('canceldispute', async (ctx) => {
   const userId = ctx.from.id;
   const username = ctx.from.username;
@@ -641,69 +495,46 @@ bot.command('canceldispute', async (ctx) => {
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
-  if (deal.status !== 'disputed') return ctx.reply(`Deal is not disputed. Status: ${deal.status}`);
+  if (deal.status !== 'disputed') return ctx.reply(`Not disputed. Status: ${deal.status}`);
 
-  // Check if user is the one who opened dispute OR is an admin
-  const isDisputer = deal.disputed_by_telegram_id === userId ||
-                     deal.disputed_by?.toLowerCase() === username?.toLowerCase();
+  const isDisputer = deal.disputed_by_telegram_id === userId || deal.disputed_by?.toLowerCase() === username?.toLowerCase();
   const { isAdmin } = await isAnyAdmin(ctx);
+  if (!isDisputer && !isAdmin) return ctx.reply('Only disputer or admin can cancel.');
 
-  if (!isDisputer && !isAdmin) {
-    return ctx.reply(`Only the person who opened the dispute or an admin can cancel it.`);
-  }
-
-  const { error } = await supabase.from('deals').update({ status: 'funded' }).ilike('deal_id', deal.deal_id);
-  if (error) {
-    return ctx.reply('Failed to cancel dispute. Try again.');
-  }
-
-  await logAdminAction('cancel_dispute', deal.deal_id, userId, username, null, 'Dispute cancelled');
+  await supabase.from('deals').update({ status: 'funded' }).ilike('deal_id', deal.deal_id);
   await ctx.reply(`✅ Dispute cancelled. ${deal.deal_id} back to funded.`);
-
-  // Notify parties
-  await notifyParties(deal, `✅ Dispute on ${deal.deal_id} has been cancelled.\n\nDeal is back to funded status.`);
+  await notifyParties(deal, `✅ Dispute on ${deal.deal_id} cancelled.`);
 });
 
-// /review
 bot.command('review', async (ctx) => {
   const userId = ctx.from.id;
   const username = ctx.from.username;
   const match = ctx.message.text.match(/^\/review\s+(TL-\w+)\s+([1-5])(?:\s+(.+))?$/i);
-
-  if (!match) {
-    return ctx.reply(`📝 Leave a Review\n\nUsage: /review TL-XXXX [1-5] [comment]\n\nExample: /review TL-ABCD 5 Great seller!`);
-  }
+  if (!match) return ctx.reply('Usage: /review TL-XXXX 5 comment');
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
-  if (deal.status !== 'completed') return ctx.reply(`Can only review completed deals.`);
+  if (deal.status !== 'completed') return ctx.reply('Can only review completed deals.');
 
   const isSeller = deal.seller_telegram_id === userId;
   const isBuyer = deal.buyer_username.toLowerCase() === username?.toLowerCase();
   if (!isSeller && !isBuyer) return ctx.reply('Not your deal.');
 
   const rating = parseInt(match[2]);
-  const comment = match[3]?.trim() || '';
-
   const field = isSeller ? 'seller_review' : 'buyer_review';
-  if (deal[field]) return ctx.reply('You already reviewed this deal.');
+  if (deal[field]) return ctx.reply('Already reviewed.');
 
-  const update = {
-    [field]: comment || 'No comment',
+  await supabase.from('deals').update({
+    [field]: match[3] || 'No comment',
     [`${isSeller ? 'seller' : 'buyer'}_rating`]: rating
-  };
-  await supabase.from('deals').update(update).ilike('deal_id', deal.deal_id);
+  }).ilike('deal_id', deal.deal_id);
 
-  await ctx.reply(`✅ Review submitted! Rating: ${'⭐'.repeat(rating)}`);
+  await ctx.reply(`✅ Review: ${'⭐'.repeat(rating)}`);
 });
 
-// /rep
 bot.command('rep', async (ctx) => {
   const match = ctx.message.text.match(/^\/rep(?:\s+@(\w+))?$/i);
   const targetUsername = match?.[1] || ctx.from.username;
-
-  const { data: user } = await supabase.from('users').select('*').ilike('username', targetUsername).single();
-  if (!user) return ctx.reply(`@${targetUsername} not found.`);
 
   const { data: deals } = await supabase
     .from('deals')
@@ -711,70 +542,53 @@ bot.command('rep', async (ctx) => {
     .or(`seller_username.ilike.${targetUsername},buyer_username.ilike.${targetUsername}`)
     .eq('status', 'completed');
 
-  const totalDeals = deals?.length || 0;
-  const totalVolume = deals?.reduce((s, d) => s + parseFloat(d.amount), 0) || 0;
+  const total = deals?.length || 0;
+  const volume = deals?.reduce((s, d) => s + parseFloat(d.amount), 0) || 0;
 
   let badge = '🆕 New';
-  if (totalDeals >= 50) badge = '💎 Elite';
-  else if (totalDeals >= 25) badge = '🏆 Top Trader';
-  else if (totalDeals >= 10) badge = '⭐ Trusted';
-  else if (totalDeals >= 3) badge = '✓ Verified';
-  else if (totalDeals >= 1) badge = '👤 Active';
+  if (total >= 50) badge = '💎 Elite';
+  else if (total >= 25) badge = '🏆 Top';
+  else if (total >= 10) badge = '⭐ Trusted';
+  else if (total >= 3) badge = '✓ Verified';
+  else if (total >= 1) badge = '👤 Active';
 
-  await ctx.reply(`📊 @${targetUsername}\n\n${badge}\n\nDeals: ${totalDeals}\nVolume: ${totalVolume.toFixed(0)} USDC`);
+  await ctx.reply(`📊 @${targetUsername}\n\n${badge}\nDeals: ${total}\nVolume: ${volume.toFixed(0)} USDC`);
 });
 
 // ============ ADMIN COMMANDS ============
 
-// /adminhelp - Botmaster only
 bot.command('adminhelp', async (ctx) => {
-  if (!isBotmaster(ctx.from.username)) {
-    return ctx.reply('Botmaster only.');
-  }
+  if (!isBotmaster(ctx.from.username)) return ctx.reply('Botmaster only.');
 
-  await ctx.reply(`
-👑 BOTMASTER COMMANDS
+  await ctx.reply(`👑 BOTMASTER COMMANDS
 
-MODERATOR MANAGEMENT
-/addmod @user - Add moderator
-/removemod @user - Remove moderator
-/mods - List all moderators
+MOD MANAGEMENT
+/addmod @user
+/removemod @user
+/mods
 
-DISPUTE MANAGEMENT
-/disputes - List ALL open disputes
-/disputes mine - Your assigned disputes
-/assign TL-XXXX @mod - Assign to moderator
-/unassign TL-XXXX - Remove assignment
-/viewevidence TL-XXXX - View all evidence
-/resolve TL-XXXX release|refund - Resolve
+DISPUTES
+/disputes - All open disputes
+/assign TL-XXXX @mod
+/unassign TL-XXXX
+/viewevidence TL-XXXX
+/resolve TL-XXXX release|refund
 
 COMMUNICATION
-/msg TL-XXXX seller|buyer [message] - DM a party
-/broadcast TL-XXXX [message] - Message both parties
+/msg TL-XXXX seller|buyer [msg]
+/broadcast TL-XXXX [msg]
 
 AUDIT
-/logs - Recent admin actions
-/logs TL-XXXX - Actions for specific deal
-  `);
+/logs
+/logs TL-XXXX`);
 });
 
-// /modhelp - Moderator help
 bot.command('modhelp', async (ctx) => {
-  const { isAdmin, role } = await isAnyAdmin(ctx);
+  const { isAdmin } = await isAnyAdmin(ctx);
   if (!isAdmin) return ctx.reply('Admin only.');
-
-  await ctx.reply(`
-🛡️ MODERATOR COMMANDS
-
-/mydisputes - Your assigned disputes
-/viewevidence TL-XXXX - View evidence
-/msg TL-XXXX seller|buyer [message] - Message a party
-/resolve TL-XXXX release|refund - Resolve assigned dispute
-${role === 'botmaster' ? '\n👑 Full admin: /adminhelp' : ''}
-  `);
+  await ctx.reply(`🛡️ MOD COMMANDS\n\n/mydisputes\n/viewevidence TL-XXXX\n/msg TL-XXXX seller|buyer [msg]\n/resolve TL-XXXX release|refund`);
 });
 
-// /addmod - Botmaster only
 bot.command('addmod', async (ctx) => {
   if (!isBotmaster(ctx.from.username)) return ctx.reply('Botmaster only.');
 
@@ -782,116 +596,99 @@ bot.command('addmod', async (ctx) => {
   if (!match) return ctx.reply('Usage: /addmod @username');
 
   const modUsername = match[1];
-
-  // Get their telegram ID from users table
   const { data: user } = await supabase.from('users').select('telegram_id').ilike('username', modUsername).single();
-  if (!user) return ctx.reply(`@${modUsername} not found. They must /wallet first.`);
+  if (!user) return ctx.reply(`@${modUsername} not found. They need to /wallet first.`);
 
-  const { error } = await supabase.from('moderators').upsert({
+  // Use insert with on conflict instead of upsert
+  const { error } = await supabase.from('moderators').insert({
     telegram_id: user.telegram_id,
     username: modUsername,
     added_by: ctx.from.username,
     is_active: true
-  }, { onConflict: 'telegram_id' });
+  });
 
-  if (error) return ctx.reply('Failed to add moderator.');
+  // If duplicate, update instead
+  if (error?.code === '23505') {
+    const { error: updateError } = await supabase.from('moderators')
+      .update({ is_active: true, username: modUsername, added_by: ctx.from.username })
+      .eq('telegram_id', user.telegram_id);
+    if (updateError) return ctx.reply(`Failed: ${updateError.message}`);
+  } else if (error) {
+    return ctx.reply(`Failed: ${error.message}`);
+  }
 
-  await logAdminAction('add_moderator', null, ctx.from.id, ctx.from.username, modUsername, 'Added as moderator');
+  await logAdminAction('add_mod', null, ctx.from.id, ctx.from.username, modUsername, 'Added moderator');
   await ctx.reply(`✅ @${modUsername} is now a moderator.`);
 
-  // Notify the new mod
   try {
-    await bot.api.sendMessage(user.telegram_id, `🛡️ You are now a TrustLock Moderator!\n\nUse /modhelp to see your commands.`);
+    await bot.api.sendMessage(user.telegram_id, `🛡️ You are now a TrustLock Moderator!\n\n/modhelp for commands.`);
   } catch (e) {}
 });
 
-// /removemod - Botmaster only
 bot.command('removemod', async (ctx) => {
   if (!isBotmaster(ctx.from.username)) return ctx.reply('Botmaster only.');
 
   const match = ctx.message.text.match(/^\/removemod\s+@(\w+)$/i);
   if (!match) return ctx.reply('Usage: /removemod @username');
 
-  const modUsername = match[1];
+  const { error } = await supabase.from('moderators').update({ is_active: false }).ilike('username', match[1]);
+  if (error) return ctx.reply(`Failed: ${error.message}`);
 
-  const { error } = await supabase.from('moderators').update({ is_active: false }).ilike('username', modUsername);
-  if (error) return ctx.reply('Failed to remove moderator.');
-
-  await logAdminAction('remove_moderator', null, ctx.from.id, ctx.from.username, modUsername, 'Removed from moderators');
-  await ctx.reply(`✅ @${modUsername} is no longer a moderator.`);
+  await ctx.reply(`✅ @${match[1]} removed from moderators.`);
 });
 
-// /mods - List moderators
 bot.command('mods', async (ctx) => {
   if (!isBotmaster(ctx.from.username)) return ctx.reply('Botmaster only.');
 
-  const { data: mods } = await supabase.from('moderators').select('*').eq('is_active', true);
+  const { data, error } = await supabase.from('moderators').select('*').eq('is_active', true);
+  if (error) return ctx.reply(`Error: ${error.message}`);
+  if (!data?.length) return ctx.reply('No moderators. /addmod @username');
 
-  if (!mods?.length) return ctx.reply('No moderators. Add with /addmod @username');
-
-  let msg = '🛡️ Active Moderators:\n\n';
-  for (const m of mods) {
-    msg += `@${m.username} (added by @${m.added_by})\n`;
-  }
+  let msg = '🛡️ Moderators:\n\n';
+  for (const m of data) msg += `@${m.username}\n`;
   await ctx.reply(msg);
 });
 
-// /disputes - List disputes
 bot.command('disputes', async (ctx) => {
   const { isAdmin, role } = await isAnyAdmin(ctx);
   if (!isAdmin) return ctx.reply('Admin only.');
 
-  const showMine = ctx.message.text.toLowerCase().includes('mine');
+  let query = supabase.from('deals').select('*').eq('status', 'disputed').order('created_at', { ascending: false });
 
-  let query = supabase.from('deals').select('*').eq('status', 'disputed').order('disputed_at', { ascending: false });
-
-  // Moderators can only see their assigned disputes
-  if (role === 'moderator' || showMine) {
+  if (role === 'moderator') {
     query = query.eq('assigned_to_telegram_id', ctx.from.id);
   }
 
-  const { data: disputes } = await query;
+  const { data, error } = await query;
+  if (error) return ctx.reply(`Error: ${error.message}`);
+  if (!data?.length) return ctx.reply('No open disputes.');
 
-  if (!disputes?.length) {
-    return ctx.reply(showMine ? 'No disputes assigned to you.' : 'No open disputes.');
+  let msg = `⚠️ Open Disputes (${data.length}):\n\n`;
+  for (const d of data) {
+    const assigned = d.assigned_to_username ? `@${d.assigned_to_username}` : '❌ Unassigned';
+    msg += `${d.deal_id} | ${d.amount} USDC\n`;
+    msg += `  @${d.seller_username} vs @${d.buyer_username}\n`;
+    msg += `  Assigned: ${assigned}\n`;
+    msg += `  Reason: ${(d.dispute_reason || 'N/A').substring(0, 30)}\n\n`;
   }
-
-  let msg = `⚠️ ${showMine ? 'Your' : 'Open'} Disputes (${disputes.length}):\n\n`;
-
-  for (const d of disputes) {
-    const assigned = d.assigned_to_username ? `→ @${d.assigned_to_username}` : '⚡ Unassigned';
-    msg += `${d.deal_id} | ${d.amount} USDC | ${assigned}\n`;
-    msg += `  @${d.seller_username} vs @${d.buyer_username}\n\n`;
-  }
-
-  msg += role === 'botmaster' ? '\n/assign TL-XXXX @mod\n/resolve TL-XXXX release|refund' : '\n/resolve TL-XXXX release|refund';
   await ctx.reply(msg);
 });
 
-// /mydisputes - Moderator's assigned disputes
 bot.command('mydisputes', async (ctx) => {
   const { isAdmin } = await isAnyAdmin(ctx);
   if (!isAdmin) return ctx.reply('Admin only.');
 
-  const { data: disputes } = await supabase
-    .from('deals')
-    .select('*')
-    .eq('status', 'disputed')
-    .eq('assigned_to_telegram_id', ctx.from.id)
-    .order('disputed_at', { ascending: false });
+  const { data, error } = await supabase.from('deals').select('*').eq('status', 'disputed').eq('assigned_to_telegram_id', ctx.from.id);
+  if (error) return ctx.reply(`Error: ${error.message}`);
+  if (!data?.length) return ctx.reply('No disputes assigned to you.');
 
-  if (!disputes?.length) return ctx.reply('No disputes assigned to you.');
-
-  let msg = `🛡️ Your Disputes (${disputes.length}):\n\n`;
-  for (const d of disputes) {
-    msg += `${d.deal_id} | ${d.amount} USDC\n`;
-    msg += `  @${d.seller_username} vs @${d.buyer_username}\n`;
-    msg += `  Reason: ${d.dispute_reason || 'N/A'}\n\n`;
+  let msg = `🛡️ Your Disputes (${data.length}):\n\n`;
+  for (const d of data) {
+    msg += `${d.deal_id} | ${d.amount} USDC\n  @${d.seller_username} vs @${d.buyer_username}\n\n`;
   }
-  await ctx.reply(msg + '\n/viewevidence TL-XXXX\n/resolve TL-XXXX release|refund');
+  await ctx.reply(msg);
 });
 
-// /assign - Botmaster assigns dispute to moderator
 bot.command('assign', async (ctx) => {
   if (!isBotmaster(ctx.from.username)) return ctx.reply('Botmaster only.');
 
@@ -900,21 +697,12 @@ bot.command('assign', async (ctx) => {
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
-  if (deal.status !== 'disputed') return ctx.reply(`Deal is not disputed. Status: ${deal.status}`);
+  if (deal.status !== 'disputed') return ctx.reply(`Not disputed. Status: ${deal.status}`);
 
   const modUsername = match[2];
-
-  // Check if they're a moderator or botmaster
-  const { data: mod } = await supabase.from('moderators').select('*').ilike('username', modUsername).eq('is_active', true).single();
-  const isMod = !!mod || isBotmaster(modUsername);
-
-  if (!isMod) return ctx.reply(`@${modUsername} is not a moderator. Add with /addmod @${modUsername}`);
-
-  // Get mod's telegram ID
   const { data: modUser } = await supabase.from('users').select('telegram_id').ilike('username', modUsername).single();
-  if (!modUser) return ctx.reply(`@${modUsername} not found in users.`);
+  if (!modUser) return ctx.reply(`@${modUsername} not found.`);
 
-  // Assign
   const { error } = await supabase.from('deals').update({
     assigned_to_telegram_id: modUser.telegram_id,
     assigned_to_username: modUsername,
@@ -922,33 +710,18 @@ bot.command('assign', async (ctx) => {
     assigned_by: ctx.from.username
   }).ilike('deal_id', deal.deal_id);
 
-  if (error) return ctx.reply('Failed to assign.');
+  if (error) return ctx.reply(`Failed: ${error.message}`);
 
-  await logAdminAction('assign_dispute', deal.deal_id, ctx.from.id, ctx.from.username, modUsername, 'Assigned to moderator');
+  await logAdminAction('assign', deal.deal_id, ctx.from.id, ctx.from.username, modUsername, 'Assigned');
   await ctx.reply(`✅ ${deal.deal_id} assigned to @${modUsername}`);
 
-  // Notify moderator
   try {
-    await bot.api.sendMessage(modUser.telegram_id, `
-🛡️ Dispute Assigned to You
-
-Deal: ${deal.deal_id}
-Amount: ${deal.amount} USDC
-Seller: @${deal.seller_username}
-Buyer: @${deal.buyer_username}
-Reason: ${deal.dispute_reason || 'N/A'}
-
-/viewevidence ${deal.deal_id}
-/msg ${deal.deal_id} seller|buyer [message]
-/resolve ${deal.deal_id} release|refund
-    `);
+    await bot.api.sendMessage(modUser.telegram_id, `🛡️ Dispute assigned: ${deal.deal_id}\n\n${deal.amount} USDC\n@${deal.seller_username} vs @${deal.buyer_username}\n\n/viewevidence ${deal.deal_id}`);
   } catch (e) {}
 
-  // Notify parties (without revealing moderator identity)
-  await notifyParties(deal, `📋 ${deal.deal_id}\n\nYour dispute is now being reviewed by the Admin Team.\n\nYou'll be notified of updates.`);
+  await notifyParties(deal, `📋 ${deal.deal_id}: Now being reviewed by Admin Team.`);
 });
 
-// /unassign - Botmaster removes assignment
 bot.command('unassign', async (ctx) => {
   if (!isBotmaster(ctx.from.username)) return ctx.reply('Botmaster only.');
 
@@ -958,91 +731,61 @@ bot.command('unassign', async (ctx) => {
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
 
-  const { error } = await supabase.from('deals').update({
+  await supabase.from('deals').update({
     assigned_to_telegram_id: null,
-    assigned_to_username: null,
-    assigned_at: null,
-    assigned_by: null
+    assigned_to_username: null
   }).ilike('deal_id', deal.deal_id);
 
-  if (error) return ctx.reply('Failed to unassign.');
-
-  await logAdminAction('unassign_dispute', deal.deal_id, ctx.from.id, ctx.from.username, deal.assigned_to_username, 'Removed assignment');
   await ctx.reply(`✅ ${deal.deal_id} unassigned.`);
 });
 
-// /msg - Message a party
 bot.command('msg', async (ctx) => {
   const { isAdmin, role } = await isAnyAdmin(ctx);
   if (!isAdmin) return ctx.reply('Admin only.');
 
   const match = ctx.message.text.match(/^\/msg\s+(TL-\w+)\s+(seller|buyer)\s+(.+)$/i);
-  if (!match) return ctx.reply('Usage: /msg TL-XXXX seller|buyer Your message here');
+  if (!match) return ctx.reply('Usage: /msg TL-XXXX seller|buyer message');
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
 
-  // Moderators can only message their assigned disputes
   if (role === 'moderator' && deal.assigned_to_telegram_id !== ctx.from.id) {
-    return ctx.reply('You can only message parties in disputes assigned to you.');
+    return ctx.reply('Only assigned disputes.');
   }
 
   const target = match[2].toLowerCase();
-  const message = match[3];
-
-  let targetId;
-  if (target === 'seller') {
-    targetId = deal.seller_telegram_id;
-  } else {
-    const { data: buyerUser } = await supabase.from('users').select('telegram_id').ilike('username', deal.buyer_username).single();
-    targetId = buyerUser?.telegram_id;
+  let targetId = target === 'seller' ? deal.seller_telegram_id : null;
+  if (target === 'buyer') {
+    const { data } = await supabase.from('users').select('telegram_id').ilike('username', deal.buyer_username).single();
+    targetId = data?.telegram_id;
   }
 
-  if (!targetId) return ctx.reply(`Cannot find ${target}'s Telegram.`);
+  if (!targetId) return ctx.reply(`Cannot find ${target}.`);
 
   try {
-    await bot.api.sendMessage(targetId, `
-📨 Message from Admin Team
-
-Re: ${deal.deal_id}
-
-${message}
-
-Reply with /evidence ${deal.deal_id} [your response]
-    `);
-    await logAdminAction('message_party', deal.deal_id, ctx.from.id, ctx.from.username, target, message);
-    await ctx.reply(`✅ Message sent to ${target}.`);
+    await bot.api.sendMessage(targetId, `📨 Admin Team (${deal.deal_id}):\n\n${match[3]}`);
+    await logAdminAction('msg', deal.deal_id, ctx.from.id, ctx.from.username, target, match[3]);
+    await ctx.reply(`✅ Sent to ${target}.`);
   } catch (e) {
-    await ctx.reply(`Failed to send message: ${e.message}`);
+    await ctx.reply(`Failed: ${e.message}`);
   }
 });
 
-// /broadcast - Message both parties
 bot.command('broadcast', async (ctx) => {
   const { isAdmin } = await isAnyAdmin(ctx);
   if (!isAdmin) return ctx.reply('Admin only.');
 
   const match = ctx.message.text.match(/^\/broadcast\s+(TL-\w+)\s+(.+)$/i);
-  if (!match) return ctx.reply('Usage: /broadcast TL-XXXX Your message');
+  if (!match) return ctx.reply('Usage: /broadcast TL-XXXX message');
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
 
-  const message = match[2];
-
-  await notifyParties(deal, `
-📢 Admin Announcement
-
-Re: ${deal.deal_id}
-
-${message}
-  `);
-
-  await logAdminAction('broadcast', deal.deal_id, ctx.from.id, ctx.from.username, 'both', message);
-  await ctx.reply('✅ Message sent to both parties.');
+  await notifyParties(deal, `📢 Admin (${deal.deal_id}):\n\n${match[2]}`);
+  await logAdminAction('broadcast', deal.deal_id, ctx.from.id, ctx.from.username, 'both', match[2]);
+  await ctx.reply('✅ Sent to both parties.');
 });
 
-// /resolve - Resolve dispute (role-based)
 bot.command('resolve', async (ctx) => {
   const { isAdmin, role } = await isAnyAdmin(ctx);
   if (!isAdmin) return ctx.reply('Admin only.');
@@ -1054,23 +797,31 @@ bot.command('resolve', async (ctx) => {
   if (!deal) return ctx.reply('Deal not found.');
   if (deal.status !== 'disputed') return ctx.reply(`Not disputed. Status: ${deal.status}`);
 
-  // Moderators can only resolve their assigned disputes
   if (role === 'moderator' && deal.assigned_to_telegram_id !== ctx.from.id) {
-    return ctx.reply('You can only resolve disputes assigned to you.');
+    return ctx.reply('Only assigned disputes.');
   }
 
   const decision = match[2].toLowerCase();
-  await ctx.reply('Resolving on-chain...');
 
-  try {
-    const chainDealId = await escrowContract.externalIdToDealId(deal.deal_id);
-    if (chainDealId.toString() !== '0') {
-      const tx = decision === 'release' ? await escrowContract.resolveRelease(chainDealId) : await escrowContract.refund(chainDealId);
+  // Get on-chain status first
+  const onChain = await getOnChainStatus(deal.deal_id);
+
+  if (onChain.exists) {
+    await ctx.reply(`On-chain status: ${onChain.status} (4=Disputed)\nResolving...`);
+
+    try {
+      let tx;
+      if (decision === 'release') {
+        tx = await escrowContract.resolveRelease(onChain.chainId);
+      } else {
+        tx = await escrowContract.refund(onChain.chainId);
+      }
       await ctx.reply(`Tx: https://sepolia.basescan.org/tx/${tx.hash}`);
       await tx.wait();
+      await ctx.reply('✅ On-chain resolved.');
+    } catch (e) {
+      await ctx.reply(`On-chain error: ${e.shortMessage || e.message}\n\nUpdating database anyway...`);
     }
-  } catch (e) {
-    await ctx.reply(`On-chain failed: ${e.shortMessage || e.message}`);
   }
 
   const newStatus = decision === 'release' ? 'completed' : 'refunded';
@@ -1080,57 +831,47 @@ bot.command('resolve', async (ctx) => {
     completed_at: new Date().toISOString()
   }).ilike('deal_id', deal.deal_id);
 
-  await logAdminAction('resolve_dispute', deal.deal_id, ctx.from.id, ctx.from.username, null, `Resolved: ${decision}`);
-  await ctx.reply(`⚖️ Resolved: ${decision === 'release' ? 'Funds → Seller' : 'Refund → Buyer'}`);
+  await logAdminAction('resolve', deal.deal_id, ctx.from.id, ctx.from.username, null, decision);
+  await ctx.reply(`⚖️ ${deal.deal_id}: ${decision === 'release' ? 'Released to seller' : 'Refunded to buyer'}`);
 
-  // Notify parties
-  const sellerMsg = decision === 'release' ? '✅ Funds released to you!' : '❌ Funds refunded to buyer.';
-  const buyerMsg = decision === 'refund' ? '✅ Funds refunded to you!' : '❌ Funds released to seller.';
+  const sellerMsg = decision === 'release' ? '✅ Funds released to you!' : '❌ Refunded to buyer.';
+  const buyerMsg = decision === 'refund' ? '✅ Funds refunded to you!' : '❌ Released to seller.';
 
-  try {
-    await bot.api.sendMessage(deal.seller_telegram_id, `⚖️ ${deal.deal_id} Resolved\n\n${sellerMsg}`);
-  } catch (e) {}
+  try { await bot.api.sendMessage(deal.seller_telegram_id, `⚖️ ${deal.deal_id}\n\n${sellerMsg}`); } catch (e) {}
 
   const { data: buyerUser } = await supabase.from('users').select('telegram_id').ilike('username', deal.buyer_username).single();
   if (buyerUser?.telegram_id) {
-    try {
-      await bot.api.sendMessage(buyerUser.telegram_id, `⚖️ ${deal.deal_id} Resolved\n\n${buyerMsg}`);
-    } catch (e) {}
+    try { await bot.api.sendMessage(buyerUser.telegram_id, `⚖️ ${deal.deal_id}\n\n${buyerMsg}`); } catch (e) {}
   }
 });
 
-// /logs - View admin logs
 bot.command('logs', async (ctx) => {
   if (!isBotmaster(ctx.from.username)) return ctx.reply('Botmaster only.');
 
   const match = ctx.message.text.match(/^\/logs(?:\s+(TL-\w+))?$/i);
   const dealId = match?.[1];
 
-  let query = supabase.from('admin_logs').select('*').order('created_at', { ascending: false }).limit(20);
+  let query = supabase.from('admin_logs').select('*').order('created_at', { ascending: false }).limit(15);
+  if (dealId) query = query.ilike('deal_id', dealId);
 
-  if (dealId) {
-    query = query.ilike('deal_id', dealId);
-  }
+  const { data, error } = await query;
+  if (error) return ctx.reply(`Error: ${error.message}`);
+  if (!data?.length) return ctx.reply('No logs found.');
 
-  const { data: logs } = await query;
-
-  if (!logs?.length) return ctx.reply('No logs found.');
-
-  let msg = `📋 Admin Logs${dealId ? ` for ${dealId.toUpperCase()}` : ''}:\n\n`;
-  for (const l of logs) {
+  let msg = `📋 Logs${dealId ? ` for ${dealId.toUpperCase()}` : ''}:\n\n`;
+  for (const l of data) {
     const date = new Date(l.created_at).toLocaleDateString();
-    msg += `${date} | @${l.admin_username}\n`;
-    msg += `  ${l.action}${l.deal_id ? ` on ${l.deal_id}` : ''}\n`;
-    if (l.target_user) msg += `  Target: ${l.target_user}\n`;
+    msg += `${date} @${l.admin_username}: ${l.action}`;
+    if (l.deal_id) msg += ` (${l.deal_id})`;
+    if (l.target_user) msg += ` → ${l.target_user}`;
     msg += '\n';
   }
   await ctx.reply(msg);
 });
 
-// ============ OTHER ============
-
+// Catch-all
 bot.on('message:text', async (ctx) => {
-  if (!ctx.message.text.startsWith('/')) await ctx.reply('Use /help');
+  if (!ctx.message.text.startsWith('/')) await ctx.reply('/help');
 });
 
 // Poll for funded deals
@@ -1152,21 +893,26 @@ async function pollDeals() {
           console.log(`Funded: ${deal.deal_id}`);
           await supabase.from('deals').update({ status: 'funded', funded_at: new Date().toISOString() }).ilike('deal_id', deal.deal_id);
 
-          if (deal.seller_telegram_id) try { await bot.api.sendMessage(deal.seller_telegram_id, `💰 ${deal.deal_id} FUNDED!\n\n${deal.amount} USDC locked.\nDeliver now → buyer releases.`); } catch (e) {}
+          if (deal.seller_telegram_id) try { await bot.api.sendMessage(deal.seller_telegram_id, `💰 ${deal.deal_id} FUNDED!\n\n${deal.amount} USDC locked.`); } catch (e) {}
 
           const { data: buyer } = await supabase.from('users').select('telegram_id').ilike('username', deal.buyer_username).single();
-          if (buyer?.telegram_id) try { await bot.api.sendMessage(buyer.telegram_id, `✅ ${deal.deal_id} deposit confirmed!\n\nRelease when ready: /release ${deal.deal_id}`); } catch (e) {}
+          if (buyer?.telegram_id) try { await bot.api.sendMessage(buyer.telegram_id, `✅ ${deal.deal_id} deposited!\n\n/release ${deal.deal_id} when ready.`); } catch (e) {}
         }
       } catch (e) {}
     }
   } catch (e) {
-    console.error('Poll error:', e.message);
+    console.error('Poll:', e.message);
   }
 }
 
+// Error handler
+bot.catch((err) => {
+  console.error('Bot error:', err.message);
+});
+
 // Start
 bot.start();
-console.log('TrustLock v3.0 running!');
+console.log('TrustLock v3.1 running!');
 console.log('Contract:', CONTRACT_ADDRESS);
 console.log('Botmasters:', BOTMASTER_USERNAMES.join(', '));
 setInterval(pollDeals, 30000);
