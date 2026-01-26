@@ -44,8 +44,51 @@ async function getDeal(dealId) {
   return { deal: data, error };
 }
 
-// /start
+// /start - Handle deep link parameters
 bot.command('start', async (ctx) => {
+  const param = ctx.message.text.split(' ')[1]?.toLowerCase();
+
+  // Handle newdeal deep link from website
+  if (param === 'newdeal') {
+    await ctx.reply(`
+💰 CREATE A NEW DEAL
+
+Step 1️⃣ - Register your wallet (one time):
+/wallet 0xYourWalletAddress
+
+Step 2️⃣ - Create the deal:
+/new @buyerUsername amount description
+
+Example:
+/new @john 50 Logo design work
+
+📋 Quick Guide:
+• amount = USDC (1-500)
+• @buyer = their Telegram username
+• description = what you're selling
+
+Need help? /help
+    `);
+    return;
+  }
+
+  // Handle dispute deep link
+  if (param?.startsWith('dispute_')) {
+    const dealId = param.replace('dispute_', '').toUpperCase();
+    await ctx.reply(`
+⚠️ Open Dispute for ${dealId}
+
+Command: /dispute ${dealId} [reason]
+
+Example:
+/dispute ${dealId} Seller not responding
+
+This will flag the deal for admin review.
+    `);
+    return;
+  }
+
+  // Default welcome message
   await ctx.reply(`
 🔒 TrustLock - Secure Crypto Escrow
 
@@ -58,6 +101,8 @@ How it works:
 
 Commands: /help
 Network: Base Sepolia
+
+🆕 Create deal now → /new
   `);
 });
 
@@ -222,7 +267,7 @@ bot.command('fund', async (ctx) => {
   try {
     const existingId = await escrowContract.externalIdToDealId(deal.deal_id);
     if (existingId.toString() !== '0') {
-      await supabase.from('deals').update({ contract_deal_id: deal.deal_id }).eq('deal_id', deal.deal_id);
+      await supabase.from('deals').update({ contract_deal_id: deal.deal_id }).ilike('deal_id', deal.deal_id);
       return ctx.reply(`👇 TAP TO DEPOSIT:\nhttps://nobrakesnft.github.io/TrustLock?deal=${deal.deal_id}`);
     }
   } catch (e) {}
@@ -233,7 +278,7 @@ bot.command('fund', async (ctx) => {
     const tx = await escrowContract.createDeal(deal.deal_id, sellerUser.wallet_address, buyerUser.wallet_address, BigInt(Math.floor(deal.amount * 1e6)));
     await ctx.reply(`Tx: https://sepolia.basescan.org/tx/${tx.hash}`);
     await tx.wait();
-    await supabase.from('deals').update({ contract_deal_id: deal.deal_id, tx_hash: tx.hash }).eq('deal_id', deal.deal_id);
+    await supabase.from('deals').update({ contract_deal_id: deal.deal_id, tx_hash: tx.hash }).ilike('deal_id', deal.deal_id);
     await ctx.reply(`✅ Ready!\n\n👇 TAP TO DEPOSIT:\nhttps://nobrakesnft.github.io/TrustLock?deal=${deal.deal_id}`);
   } catch (e) {
     await ctx.reply(`Failed: ${e.message}`);
@@ -286,7 +331,8 @@ bot.command('cancel', async (ctx) => {
   if (!isSeller && !isBuyer) return ctx.reply('Not your deal.');
   if (!['pending_deposit', 'funded'].includes(deal.status)) return ctx.reply(`Cannot cancel. Status: ${deal.status}`);
 
-  await supabase.from('deals').update({ status: 'cancelled' }).eq('deal_id', deal.deal_id);
+  const { error } = await supabase.from('deals').update({ status: 'cancelled' }).ilike('deal_id', deal.deal_id);
+  if (error) return ctx.reply('Failed to cancel. Try again.');
   await ctx.reply(`❌ ${deal.deal_id} cancelled.${deal.status === 'funded' ? '\nContact admin for on-chain refund.' : ''}`);
 });
 
@@ -307,17 +353,24 @@ bot.command('dispute', async (ctx) => {
 
   const reason = match[2] || 'No reason provided';
 
-  // Update status
+  // Update status - use ilike for case-insensitive match
   const { error } = await supabase.from('deals').update({
     status: 'disputed',
     disputed_by: username,
     dispute_reason: reason,
     disputed_at: new Date().toISOString()
-  }).eq('deal_id', deal.deal_id);
+  }).ilike('deal_id', deal.deal_id);
 
   if (error) {
     console.error('Dispute update error:', error);
     return ctx.reply('Failed to open dispute. Try again.');
+  }
+
+  // Verify update worked
+  const { deal: verifyDeal } = await getDeal(deal.deal_id);
+  if (verifyDeal?.status !== 'disputed') {
+    console.error('Dispute update verification failed:', verifyDeal?.status);
+    return ctx.reply('Dispute may not have saved. Try again or contact admin.');
   }
 
   await ctx.reply(`
@@ -383,14 +436,20 @@ bot.command('evidence', async (ctx) => {
 
   const role = isSeller ? 'Seller' : (isBuyer ? 'Buyer' : 'Admin');
 
-  await supabase.from('evidence').insert({
+  const { error: insertError } = await supabase.from('evidence').insert({
     deal_id: deal.deal_id,
     submitted_by: username,
-    role, content: evidence,
+    role,
+    content: evidence,
     telegram_id: userId
   });
 
-  await ctx.reply(`✅ Evidence submitted for ${deal.deal_id}`);
+  if (insertError) {
+    console.error('Evidence insert error:', insertError);
+    return ctx.reply(`Failed to save evidence: ${insertError.message}\n\nTry again or contact admin.`);
+  }
+
+  await ctx.reply(`✅ Evidence submitted for ${deal.deal_id}\n\nView all: /viewevidence ${deal.deal_id}`);
 
   // Forward to others
   const { data: buyerUser } = await supabase.from('users').select('telegram_id').ilike('username', deal.buyer_username).single();
@@ -447,7 +506,11 @@ bot.command('canceldispute', async (ctx) => {
   if (deal.status !== 'disputed') return ctx.reply(`Deal is not disputed. Status: ${deal.status}`);
   if (deal.disputed_by?.toLowerCase() !== username?.toLowerCase()) return ctx.reply(`Only @${deal.disputed_by} can cancel.`);
 
-  await supabase.from('deals').update({ status: 'funded' }).eq('deal_id', deal.deal_id);
+  const { error } = await supabase.from('deals').update({ status: 'funded' }).ilike('deal_id', deal.deal_id);
+  if (error) {
+    console.error('Cancel dispute error:', error);
+    return ctx.reply('Failed to cancel dispute. Try again.');
+  }
   await ctx.reply(`✅ Dispute cancelled. ${deal.deal_id} back to funded.`);
 });
 
@@ -478,7 +541,7 @@ bot.command('resolve', async (ctx) => {
   }
 
   const newStatus = decision === 'release' ? 'completed' : 'refunded';
-  await supabase.from('deals').update({ status: newStatus, resolved_by: username, completed_at: new Date().toISOString() }).eq('deal_id', deal.deal_id);
+  await supabase.from('deals').update({ status: newStatus, resolved_by: username, completed_at: new Date().toISOString() }).ilike('deal_id', deal.deal_id);
 
   await ctx.reply(`⚖️ Resolved: ${decision === 'release' ? 'Funds → Seller' : 'Refund → Buyer'}`);
 
@@ -532,7 +595,7 @@ Example:
     [field]: comment || 'No comment',
     [`${isSeller ? 'seller' : 'buyer'}_rating`]: rating
   };
-  await supabase.from('deals').update(update).eq('deal_id', deal.deal_id);
+  await supabase.from('deals').update(update).ilike('deal_id', deal.deal_id);
 
   const stars = '⭐'.repeat(rating);
   const reviewed = isSeller ? deal.buyer_username : deal.seller_username;
@@ -621,7 +684,7 @@ async function pollDeals() {
         const onChain = await escrowContract.deals(chainId);
         if (Number(onChain[4]) === 1) {
           console.log(`Funded: ${deal.deal_id}`);
-          await supabase.from('deals').update({ status: 'funded', funded_at: new Date().toISOString() }).eq('deal_id', deal.deal_id);
+          await supabase.from('deals').update({ status: 'funded', funded_at: new Date().toISOString() }).ilike('deal_id', deal.deal_id);
 
           if (deal.seller_telegram_id) try { await bot.api.sendMessage(deal.seller_telegram_id, `💰 ${deal.deal_id} FUNDED!\n\n${deal.amount} USDC locked.\nDeliver now → buyer releases.`); } catch (e) {}
 
