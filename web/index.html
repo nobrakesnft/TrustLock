@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- TrustLock v2.1 -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -13,454 +14,246 @@
             min-height: 100vh;
             color: #fff;
         }
-        .container {
-            max-width: 480px;
-            margin: 0 auto;
-            padding: 20px;
-        }
+        .container { max-width: 480px; margin: 0 auto; padding: 20px; }
 
-        /* Header */
-        .header {
-            text-align: center;
-            padding: 20px 0;
-        }
+        .header { text-align: center; padding: 20px 0; }
         .logo {
-            font-size: 1.8rem;
-            font-weight: 700;
+            font-size: 1.8rem; font-weight: 700;
             background: linear-gradient(90deg, #00d9ff, #00ff88);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
-        .tagline {
-            color: #666;
-            font-size: 0.85rem;
-            margin-top: 4px;
-        }
+        .tagline { color: #666; font-size: 0.85rem; margin-top: 4px; }
         .network-badge {
-            display: inline-block;
-            padding: 4px 10px;
-            background: rgba(255,193,7,0.15);
-            color: #ffc107;
-            border-radius: 20px;
-            font-size: 0.65rem;
-            margin-top: 8px;
+            display: inline-block; padding: 4px 10px;
+            background: rgba(255,193,7,0.15); color: #ffc107;
+            border-radius: 20px; font-size: 0.65rem; margin-top: 8px;
             border: 1px solid rgba(255,193,7,0.3);
         }
 
-        /* Tabs */
         .tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 20px;
-            background: rgba(0,0,0,0.3);
-            padding: 6px;
-            border-radius: 12px;
+            display: flex; gap: 8px; margin-bottom: 20px;
+            background: rgba(0,0,0,0.3); padding: 6px; border-radius: 12px;
         }
         .tab {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            background: transparent;
-            color: #666;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            border-radius: 8px;
-            transition: all 0.2s;
+            flex: 1; padding: 12px; border: none; background: transparent;
+            color: #666; font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; border-radius: 8px; transition: all 0.2s;
         }
-        .tab.active {
-            background: linear-gradient(135deg, #00d9ff, #00ff88);
-            color: #0a0a0f;
-        }
-        .tab:hover:not(.active) {
-            color: #fff;
-            background: rgba(255,255,255,0.05);
-        }
+        .tab.active { background: linear-gradient(135deg, #00d9ff, #00ff88); color: #0a0a0f; }
+        .tab:hover:not(.active) { color: #fff; background: rgba(255,255,255,0.05); }
 
-        /* Cards */
         .card {
             background: rgba(255,255,255,0.03);
             border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 16px;
+            border-radius: 16px; padding: 24px; margin-bottom: 16px;
         }
         .card-title {
-            font-size: 0.75rem;
-            color: #888;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 16px;
+            font-size: 0.75rem; color: #888; text-transform: uppercase;
+            letter-spacing: 0.5px; margin-bottom: 16px;
         }
 
-        /* Inputs */
-        .input-group {
-            margin-bottom: 16px;
-        }
-        .input-group label {
-            display: block;
-            color: #888;
-            font-size: 0.8rem;
-            margin-bottom: 8px;
-        }
+        .input-group { margin-bottom: 16px; }
+        .input-group label { display: block; color: #888; font-size: 0.8rem; margin-bottom: 8px; }
         input, select {
-            width: 100%;
-            padding: 14px 16px;
-            border-radius: 12px;
+            width: 100%; padding: 14px 16px; border-radius: 12px;
             border: 2px solid rgba(255,255,255,0.1);
-            background: rgba(0,0,0,0.3);
-            color: #fff;
-            font-size: 1rem;
+            background: rgba(0,0,0,0.3); color: #fff; font-size: 1rem;
         }
-        input:focus, select:focus {
-            outline: none;
-            border-color: #00d9ff;
-        }
+        input:focus, select:focus { outline: none; border-color: #00d9ff; }
         input::placeholder { color: #444; }
-        .input-hint {
-            font-size: 0.7rem;
-            color: #555;
-            margin-top: 6px;
-        }
+        .input-hint { font-size: 0.7rem; color: #555; margin-top: 6px; }
 
-        /* Buttons */
         .btn {
-            width: 100%;
-            padding: 16px;
-            border-radius: 12px;
-            border: none;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
+            width: 100%; padding: 16px; border-radius: 12px; border: none;
+            font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
         }
-        .btn-primary {
-            background: linear-gradient(135deg, #00d9ff, #00ff88);
-            color: #0a0a0f;
-        }
-        .btn-primary:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0,217,255,0.3);
-        }
-        .btn-secondary {
-            background: rgba(255,255,255,0.05);
-            color: #888;
-            border: 1px solid rgba(255,255,255,0.1);
-            margin-top: 12px;
-        }
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .btn-loading {
-            position: relative;
-            color: transparent !important;
-        }
+        .btn-primary { background: linear-gradient(135deg, #00d9ff, #00ff88); color: #0a0a0f; }
+        .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,217,255,0.3); }
+        .btn-secondary { background: rgba(255,255,255,0.05); color: #888; border: 1px solid rgba(255,255,255,0.1); margin-top: 12px; }
+        .btn-danger { background: rgba(255,71,87,0.2); color: #ff4757; border: 1px solid rgba(255,71,87,0.3); margin-top: 12px; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-loading { position: relative; color: transparent !important; }
         .btn-loading::after {
-            content: "";
-            position: absolute;
-            width: 20px;
-            height: 20px;
-            top: 50%;
-            left: 50%;
-            margin: -10px 0 0 -10px;
-            border: 3px solid #0a0a0f;
-            border-top-color: transparent;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
+            content: ""; position: absolute; width: 20px; height: 20px;
+            top: 50%; left: 50%; margin: -10px 0 0 -10px;
+            border: 3px solid #0a0a0f; border-top-color: transparent;
+            border-radius: 50%; animation: spin 0.8s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Wallet Section */
-        .wallet-section {
-            text-align: center;
-            padding: 20px 0;
-        }
         .wallet-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            background: rgba(0,255,136,0.1);
-            border-radius: 20px;
-            font-size: 0.85rem;
-            color: #00ff88;
-            margin-bottom: 16px;
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 16px; background: rgba(0,255,136,0.1);
+            border-radius: 20px; font-size: 0.85rem; color: #00ff88;
         }
-        .wallet-badge::before {
-            content: "";
-            width: 8px;
-            height: 8px;
-            background: #00ff88;
-            border-radius: 50%;
-        }
+        .wallet-badge::before { content: ""; width: 8px; height: 8px; background: #00ff88; border-radius: 50%; }
 
-        /* Mobile wallet buttons */
-        .wallet-options {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 16px;
-        }
+        .wallet-options { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
         .wallet-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            padding: 14px;
-            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+            padding: 14px; border-radius: 12px;
             border: 1px solid rgba(255,255,255,0.1);
-            background: rgba(255,255,255,0.03);
-            color: #fff;
-            font-size: 0.95rem;
-            cursor: pointer;
-            transition: all 0.2s;
+            background: rgba(255,255,255,0.03); color: #fff;
+            font-size: 0.95rem; cursor: pointer; transition: all 0.2s;
         }
-        .wallet-btn:hover {
-            background: rgba(255,255,255,0.08);
-            border-color: #00d9ff;
-        }
+        .wallet-btn:hover { background: rgba(255,255,255,0.08); border-color: #00d9ff; }
         .wallet-icon {
-            width: 28px;
-            height: 28px;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 14px;
-        }
-        .metamask-icon {
-            background: linear-gradient(135deg, #E2761B, #CD6116);
-        }
-        .rabby-icon {
-            background: linear-gradient(135deg, #8697FF, #6366F1);
-        }
-        .trust-icon {
-            background: linear-gradient(135deg, #3375BB, #0500FF);
+            width: 28px; height: 28px; border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 16px; color: white;
         }
 
-        /* Deal Display */
-        .deal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-        .deal-id {
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: #00d9ff;
-        }
-        .deal-status {
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.7rem;
-            font-weight: 600;
-        }
+        .deal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .deal-id { font-size: 1.3rem; font-weight: 700; color: #00d9ff; }
+        .deal-status { padding: 5px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
         .status-pending { background: rgba(255,193,7,0.2); color: #ffc107; }
         .status-funded { background: rgba(0,255,136,0.2); color: #00ff88; }
         .status-completed { background: rgba(0,217,255,0.2); color: #00d9ff; }
+        .status-disputed { background: rgba(255,71,87,0.2); color: #ff4757; }
 
-        .deal-amount {
-            text-align: center;
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin: 20px 0;
-        }
+        .deal-amount { text-align: center; font-size: 2.5rem; font-weight: 700; margin: 20px 0; }
         .deal-amount span { font-size: 1rem; color: #888; font-weight: 400; }
 
         .info-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 12px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+            display: flex; justify-content: space-between;
+            padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
             font-size: 0.9rem;
         }
         .info-row:last-child { border-bottom: none; }
         .info-label { color: #666; }
         .info-value { font-weight: 500; }
 
-        /* Alerts */
-        .alert {
-            padding: 14px;
-            border-radius: 10px;
-            font-size: 0.85rem;
-            margin-top: 16px;
-        }
+        .alert { padding: 14px; border-radius: 10px; font-size: 0.85rem; margin-top: 16px; }
         .alert-info { background: rgba(0,217,255,0.1); color: #00d9ff; }
         .alert-success { background: rgba(0,255,136,0.1); color: #00ff88; }
         .alert-error { background: rgba(255,71,87,0.1); color: #ff4757; }
         .alert-warning { background: rgba(255,193,7,0.1); color: #ffc107; }
 
-        /* Success Section */
         .success-icon {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 20px;
+            width: 80px; height: 80px; margin: 0 auto 20px;
             background: linear-gradient(135deg, #00d9ff, #00ff88);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2.5rem;
+            border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; font-size: 2.5rem;
         }
-        .tx-link {
-            display: inline-block;
-            color: #00d9ff;
-            text-decoration: none;
-            font-size: 0.85rem;
-            margin-top: 16px;
-        }
+        .tx-link { display: inline-block; color: #00d9ff; text-decoration: none; font-size: 0.85rem; margin-top: 16px; }
 
-        /* Tab Content */
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-
         .hidden { display: none !important; }
 
-        /* Footer */
-        .footer {
-            text-align: center;
-            padding: 20px;
-            color: #444;
-            font-size: 0.75rem;
-        }
+        .footer { text-align: center; padding: 20px; color: #444; font-size: 0.75rem; }
         .footer a { color: #00d9ff; text-decoration: none; }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <div class="header">
             <div class="logo">TrustLock</div>
             <div class="tagline">Secure Crypto Escrow</div>
             <span class="network-badge">Base Sepolia Testnet</span>
         </div>
 
-        <!-- Tabs -->
         <div class="tabs">
             <button class="tab active" onclick="switchTab('pay')">Pay</button>
             <button class="tab" onclick="switchTab('sell')">Sell</button>
             <button class="tab" onclick="switchTab('status')">Status</button>
         </div>
 
-        <!-- PAY TAB (Buyer deposits or releases) -->
+        <!-- PAY TAB -->
         <div id="tab-pay" class="tab-content active">
-            <!-- Search Deal -->
             <div id="pay-search" class="card">
                 <div class="card-title">Enter Deal ID</div>
                 <div class="input-group">
-                    <input type="text" id="pay-deal-input" placeholder="TL-XXXX" maxlength="7" style="text-align:center; letter-spacing:3px; text-transform:uppercase; font-weight:600;" />
+                    <input type="text" id="pay-deal-input" placeholder="TL-XXXX" maxlength="7"
+                           style="text-align:center; letter-spacing:3px; text-transform:uppercase; font-weight:600;" />
                 </div>
-                <button class="btn btn-primary" id="pay-search-btn" onclick="searchDeal('pay')">Find Deal</button>
+                <button class="btn btn-primary" id="pay-search-btn" onclick="searchDeal()">Find Deal</button>
                 <div id="pay-search-alert"></div>
             </div>
 
-            <!-- Deal Details (hidden until found) -->
             <div id="pay-deal" class="hidden">
                 <div class="card">
                     <div class="deal-header">
                         <div class="deal-id" id="pay-deal-id">TL-XXXX</div>
                         <div class="deal-status status-pending" id="pay-status">Pending</div>
                     </div>
-                    <div class="deal-amount">
-                        <span id="pay-amount">0</span> <span>USDC</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Seller</span>
-                        <span class="info-value" id="pay-seller">0x...</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Buyer</span>
-                        <span class="info-value" id="pay-buyer">0x...</span>
-                    </div>
+                    <div class="deal-amount"><span id="pay-amount">0</span> <span>USDC</span></div>
+                    <div class="info-row"><span class="info-label">Seller</span><span class="info-value" id="pay-seller">0x...</span></div>
+                    <div class="info-row"><span class="info-label">Buyer</span><span class="info-value" id="pay-buyer">0x...</span></div>
                 </div>
 
-                <!-- Connect Wallet -->
                 <div id="pay-connect" class="card">
                     <div class="card-title">Connect Wallet</div>
-                    <button class="btn btn-primary" id="pay-connect-btn" onclick="connectWallet('pay')">Connect Wallet</button>
-
+                    <button class="btn btn-primary" id="pay-connect-btn" onclick="connectWallet()">Connect Wallet</button>
                     <div id="pay-mobile-options" class="wallet-options hidden">
                         <button class="wallet-btn" onclick="openWallet('metamask')">
-                            <div class="wallet-icon metamask-icon">M</div>
+                            <div class="wallet-icon" style="background:linear-gradient(135deg,#E2761B,#CD6116);">M</div>
                             MetaMask
                         </button>
                         <button class="wallet-btn" onclick="openWallet('rabby')">
-                            <div class="wallet-icon rabby-icon">R</div>
+                            <div class="wallet-icon" style="background:linear-gradient(135deg,#8697FF,#6366F1);">R</div>
                             Rabby Wallet
                         </button>
                         <button class="wallet-btn" onclick="openWallet('trust')">
-                            <div class="wallet-icon trust-icon">T</div>
+                            <div class="wallet-icon" style="background:linear-gradient(135deg,#3375BB,#0500FF);">T</div>
                             Trust Wallet
                         </button>
                     </div>
                 </div>
 
-                <!-- Actions (hidden until connected) -->
                 <div id="pay-actions" class="card hidden">
-                    <div class="wallet-section">
+                    <div style="text-align:center;padding:10px 0;">
                         <div class="wallet-badge" id="pay-wallet-addr">Connected</div>
                     </div>
                     <button class="btn btn-primary" id="pay-approve-btn" onclick="approveUSDC()">Approve USDC</button>
                     <button class="btn btn-primary hidden" id="pay-deposit-btn" onclick="depositUSDC()">Deposit Funds</button>
-                    <button class="btn btn-primary hidden" id="pay-release-btn" onclick="releaseFunds()" style="background: linear-gradient(135deg, #00ff88, #00d9ff);">Release to Seller</button>
+                    <button class="btn btn-primary hidden" id="pay-release-btn" onclick="releaseFunds()" style="background:linear-gradient(135deg,#00ff88,#00d9ff);">Release to Seller</button>
+                    <button class="btn btn-danger hidden" id="pay-dispute-btn" onclick="openDispute()">Open Dispute</button>
                     <div id="pay-action-alert"></div>
                 </div>
 
                 <button class="btn btn-secondary" onclick="resetPay()">Back</button>
             </div>
 
-            <!-- Success -->
             <div id="pay-success" class="card hidden" style="text-align:center;">
                 <div class="success-icon" id="pay-success-icon">✓</div>
                 <h2 id="pay-success-title">Success!</h2>
                 <p style="color:#888;margin:12px 0;" id="pay-success-msg">Transaction completed.</p>
-                <a class="tx-link" id="pay-tx-link" href="#" target="_blank">View on BaseScan →</a>
+                <a class="tx-link" id="pay-tx-link" href="#" target="_blank">View on BaseScan</a>
             </div>
         </div>
 
-        <!-- SELL TAB (Create new deals) -->
+        <!-- SELL TAB -->
         <div id="tab-sell" class="tab-content">
             <div class="card">
                 <div class="card-title">Create Escrow Deal</div>
-
                 <div class="input-group">
                     <label>Your Wallet (Seller)</label>
                     <input type="text" id="sell-seller" placeholder="0x..." />
                 </div>
-
                 <div class="input-group">
                     <label>Buyer's Wallet</label>
                     <input type="text" id="sell-buyer" placeholder="0x..." />
                 </div>
-
                 <div class="input-group">
                     <label>Amount (USDC)</label>
                     <input type="number" id="sell-amount" placeholder="100" min="1" max="500" />
                     <div class="input-hint">Min: 1 USDC, Max: 500 USDC</div>
                 </div>
-
                 <div class="input-group">
                     <label>Description</label>
                     <input type="text" id="sell-desc" placeholder="Logo design, NFT, etc." maxlength="100" />
                 </div>
-
                 <button class="btn btn-primary" id="sell-create-btn" onclick="createDeal()">Create Deal</button>
                 <div id="sell-alert"></div>
             </div>
 
-            <!-- Created Deal Info -->
             <div id="sell-result" class="card hidden" style="text-align:center;">
                 <div class="success-icon">📋</div>
                 <h2>Deal Created!</h2>
-                <div style="margin:20px 0;">
-                    <div class="deal-id" id="sell-deal-id" style="font-size:2rem;">TL-XXXX</div>
-                </div>
-                <p style="color:#888;font-size:0.9rem;">Share this Deal ID with the buyer.</p>
-                <p style="color:#888;font-size:0.9rem;margin-top:8px;">Buyer visits this page → Pay tab → Enters deal ID</p>
-                <a class="tx-link" id="sell-tx-link" href="#" target="_blank">View on BaseScan →</a>
+                <div style="margin:20px 0;"><div class="deal-id" id="sell-deal-id" style="font-size:2rem;">TL-XXXX</div></div>
+                <p style="color:#888;font-size:0.9rem;">Share this ID with the buyer.</p>
+                <a class="tx-link" id="sell-tx-link" href="#" target="_blank">View on BaseScan</a>
                 <button class="btn btn-secondary" onclick="resetSell()">Create Another</button>
             </div>
         </div>
@@ -470,44 +263,31 @@
             <div class="card">
                 <div class="card-title">Check Deal Status</div>
                 <div class="input-group">
-                    <input type="text" id="status-deal-input" placeholder="TL-XXXX" maxlength="7" style="text-align:center; letter-spacing:3px; text-transform:uppercase; font-weight:600;" />
+                    <input type="text" id="status-deal-input" placeholder="TL-XXXX" maxlength="7"
+                           style="text-align:center; letter-spacing:3px; text-transform:uppercase; font-weight:600;" />
                 </div>
                 <button class="btn btn-primary" onclick="checkStatus()">Check Status</button>
                 <div id="status-alert"></div>
             </div>
 
-            <!-- Status Result -->
             <div id="status-result" class="card hidden">
                 <div class="deal-header">
                     <div class="deal-id" id="status-deal-id">TL-XXXX</div>
                     <div class="deal-status" id="status-badge">Pending</div>
                 </div>
-                <div class="deal-amount">
-                    <span id="status-amount">0</span> <span>USDC</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Seller</span>
-                    <span class="info-value" id="status-seller">0x...</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Buyer</span>
-                    <span class="info-value" id="status-buyer">0x...</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Status</span>
-                    <span class="info-value" id="status-text">Pending Payment</span>
-                </div>
+                <div class="deal-amount"><span id="status-amount">0</span> <span>USDC</span></div>
+                <div class="info-row"><span class="info-label">Seller</span><span class="info-value" id="status-seller">0x...</span></div>
+                <div class="info-row"><span class="info-label">Buyer</span><span class="info-value" id="status-buyer">0x...</span></div>
+                <div class="info-row"><span class="info-label">Status</span><span class="info-value" id="status-text">Pending</span></div>
             </div>
         </div>
 
-        <!-- Footer -->
         <div class="footer">
-            Powered by TrustLock | <a href="https://t.me/trustlockbot" target="_blank">Telegram Bot</a>
+            TrustLock | <a href="https://t.me/trustlockbot" target="_blank">Telegram Bot</a>
         </div>
     </div>
 
     <script>
-        // Config
         const CONFIG = {
             CONTRACT: '0x930e2828EA1D9D8cFa5a934A133f2d290924d9bC',
             USDC: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
@@ -516,37 +296,26 @@
             EXPLORER: 'https://sepolia.basescan.org'
         };
 
-        // ABIs
         const ESCROW_ABI = [
-            "function createDeal(string calldata _externalId, address _seller, address _buyer, uint256 _amount) external returns (uint256)",
-            "function deposit(uint256 _dealId) external",
-            "function release(uint256 _dealId) external",
+            "function createDeal(string,address,address,uint256) returns (uint256)",
+            "function deposit(uint256)",
+            "function release(uint256)",
             "function getDealByExternalId(string) view returns (tuple(string,address,address,uint256,uint8,uint256,uint256))",
             "function externalIdToDealId(string) view returns (uint256)"
         ];
         const ERC20_ABI = [
             "function approve(address,uint256) returns (bool)",
-            "function allowance(address,address) view returns (uint256)",
-            "function balanceOf(address) view returns (uint256)"
+            "function allowance(address,address) view returns (uint256)"
         ];
 
-        // State
-        let state = {
-            deal: null,
-            signer: null,
-            address: null,
-            action: 'deposit'
-        };
+        let state = { deal: null, signer: null, address: null, action: 'deposit' };
 
-        // Helpers
         const $ = id => document.getElementById(id);
         const show = id => $(id)?.classList.remove('hidden');
         const hide = id => $(id)?.classList.add('hidden');
         const short = addr => addr ? `${addr.slice(0,6)}...${addr.slice(-4)}` : '';
 
-        function showAlert(id, msg, type) {
-            $(id).innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
-        }
+        function showAlert(id, msg, type) { $(id).innerHTML = `<div class="alert alert-${type}">${msg}</div>`; }
         function clearAlert(id) { $(id).innerHTML = ''; }
 
         function setLoading(btnId, loading) {
@@ -556,7 +325,6 @@
             loading ? btn.classList.add('btn-loading') : btn.classList.remove('btn-loading');
         }
 
-        // Tab Switching
         function switchTab(tab) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -564,41 +332,48 @@
             $(`tab-${tab}`).classList.add('active');
         }
 
-        // Mobile detection
         function isMobile() {
             return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         }
 
-        // Open in wallet app
         function openWallet(wallet) {
             const url = window.location.href;
-            let deepLink;
+            const cleanUrl = url.replace(/^https?:\/\//, '');
 
             switch(wallet) {
                 case 'metamask':
-                    deepLink = `https://metamask.app.link/dapp/${url.replace('https://', '')}`;
+                    window.location.href = `https://metamask.app.link/dapp/${cleanUrl}`;
                     break;
                 case 'rabby':
-                    deepLink = `https://rabby.io/dapp?url=${encodeURIComponent(url)}`;
+                    // Rabby uses multiple deep link formats - try the most common ones
+                    const rabbyLink = `rabby://dapp?url=${encodeURIComponent(url)}`;
+
+                    // Create invisible link and click it
+                    const a = document.createElement('a');
+                    a.href = rabbyLink;
+                    a.click();
+
+                    // Fallback after delay
+                    setTimeout(() => {
+                        // If still on page, try alternative
+                        window.location.href = `https://rabby.io/redirect?url=${encodeURIComponent(url)}`;
+                    }, 2000);
                     break;
                 case 'trust':
-                    deepLink = `https://link.trustwallet.com/open_url?coin_id=60&url=${encodeURIComponent(url)}`;
+                    window.location.href = `https://link.trustwallet.com/open_url?coin_id=60&url=${encodeURIComponent(url)}`;
                     break;
             }
-            window.location.href = deepLink;
         }
 
-        // Search Deal (Pay tab)
-        async function searchDeal(tab) {
-            const input = $(`${tab}-deal-input`).value.trim().toUpperCase();
-
+        async function searchDeal() {
+            const input = $('pay-deal-input').value.trim().toUpperCase();
             if (!input.match(/^TL-[A-Z0-9]{4}$/)) {
-                showAlert(`${tab}-search-alert`, 'Enter a valid deal ID (TL-XXXX)', 'error');
+                showAlert('pay-search-alert', 'Enter valid deal ID (TL-XXXX)', 'error');
                 return;
             }
 
-            setLoading(`${tab}-search-btn`, true);
-            clearAlert(`${tab}-search-alert`);
+            setLoading('pay-search-btn', true);
+            clearAlert('pay-search-alert');
 
             try {
                 const provider = new ethers.providers.JsonRpcProvider(CONFIG.RPC);
@@ -606,8 +381,8 @@
 
                 const chainId = await contract.externalIdToDealId(input);
                 if (chainId.toString() === '0') {
-                    showAlert(`${tab}-search-alert`, 'Deal not found on blockchain.', 'warning');
-                    setLoading(`${tab}-search-btn`, false);
+                    showAlert('pay-search-alert', 'Deal not found on blockchain.', 'warning');
+                    setLoading('pay-search-btn', false);
                     return;
                 }
 
@@ -615,11 +390,9 @@
                 const status = deal[4];
                 const statuses = ['Pending', 'Funded', 'Completed', 'Refunded', 'Disputed', 'Cancelled'];
 
-                // Check action from URL
                 const params = new URLSearchParams(window.location.search);
-                state.action = params.get('action') === 'release' ? 'release' : 'deposit';
+                state.action = params.get('action') === 'release' ? 'release' : (status === 1 ? 'release' : 'deposit');
 
-                // Save deal
                 state.deal = {
                     id: input,
                     chainId: chainId.toString(),
@@ -629,44 +402,34 @@
                     status: status
                 };
 
-                // Update UI
                 $('pay-deal-id').textContent = input;
                 $('pay-amount').textContent = ethers.utils.formatUnits(deal[3], 6);
                 $('pay-seller').textContent = short(deal[1]);
                 $('pay-buyer').textContent = short(deal[2]);
 
-                // Update status badge
+                const statusClass = ['status-pending', 'status-funded', 'status-completed', 'status-completed', 'status-disputed', 'status-pending'][status];
                 $('pay-status').textContent = statuses[status];
-                $('pay-status').className = 'deal-status ' +
-                    (status === 0 ? 'status-pending' : status === 1 ? 'status-funded' : 'status-completed');
-
-                // Show appropriate action based on status
-                if (status === 0) {
-                    state.action = 'deposit';
-                } else if (status === 1) {
-                    state.action = 'release';
-                }
+                $('pay-status').className = 'deal-status ' + statusClass;
 
                 hide('pay-search');
                 show('pay-deal');
 
             } catch (e) {
                 console.error(e);
-                showAlert(`${tab}-search-alert`, 'Error: ' + (e.message || 'Connection failed'), 'error');
+                showAlert('pay-search-alert', 'Error: ' + e.message, 'error');
             }
 
-            setLoading(`${tab}-search-btn`, false);
+            setLoading('pay-search-btn', false);
         }
 
-        // Connect Wallet
-        async function connectWallet(tab) {
+        async function connectWallet() {
             if (!window.ethereum) {
                 if (isMobile()) {
                     hide('pay-connect-btn');
                     show('pay-mobile-options');
                     return;
                 }
-                showAlert('pay-action-alert', 'No wallet detected. Install MetaMask or use a mobile wallet.', 'warning');
+                showAlert('pay-action-alert', 'No wallet detected. Install MetaMask.', 'warning');
                 return;
             }
 
@@ -676,7 +439,6 @@
                 let provider = new ethers.providers.Web3Provider(window.ethereum);
                 await provider.send("eth_requestAccounts", []);
 
-                // Check/switch network
                 const network = await provider.getNetwork();
                 if (network.chainId !== CONFIG.CHAIN_ID) {
                     try {
@@ -704,9 +466,8 @@
                 state.signer = provider.getSigner();
                 state.address = await state.signer.getAddress();
 
-                // Verify address matches deal buyer
                 if (state.address.toLowerCase() !== state.deal.buyer.toLowerCase()) {
-                    showAlert('pay-action-alert', `Wrong wallet! Deal requires: ${short(state.deal.buyer)}`, 'error');
+                    showAlert('pay-action-alert', `Wrong wallet! Need: ${short(state.deal.buyer)}`, 'error');
                     setLoading('pay-connect-btn', false);
                     return;
                 }
@@ -715,61 +476,60 @@
                 hide('pay-connect');
                 show('pay-actions');
 
-                // Show appropriate buttons
-                if (state.action === 'release') {
-                    hide('pay-approve-btn');
-                    hide('pay-deposit-btn');
-                    show('pay-release-btn');
-                    showAlert('pay-action-alert', 'Ready to release funds to seller.', 'success');
-                } else {
-                    // Check allowance
+                // Reset all buttons
+                hide('pay-approve-btn');
+                hide('pay-deposit-btn');
+                hide('pay-release-btn');
+                hide('pay-dispute-btn');
+
+                if (state.deal.status === 0) {
                     const usdc = new ethers.Contract(CONFIG.USDC, ERC20_ABI, state.signer);
                     const allowance = await usdc.allowance(state.address, CONFIG.CONTRACT);
-
                     if (allowance.gte(state.deal.amount)) {
-                        hide('pay-approve-btn');
                         show('pay-deposit-btn');
-                        showAlert('pay-action-alert', 'USDC approved. Ready to deposit.', 'success');
+                        showAlert('pay-action-alert', 'Ready to deposit.', 'success');
                     } else {
                         show('pay-approve-btn');
-                        hide('pay-deposit-btn');
                     }
+                } else if (state.deal.status === 1) {
+                    show('pay-release-btn');
+                    show('pay-dispute-btn');
+                    showAlert('pay-action-alert', 'Funds in escrow. Release or dispute.', 'success');
+                } else if (state.deal.status === 4) {
+                    showAlert('pay-action-alert', 'Deal disputed. Use Telegram to resolve.', 'warning');
                 }
 
             } catch (e) {
                 console.error(e);
-                showAlert('pay-action-alert', 'Failed to connect: ' + e.message, 'error');
+                showAlert('pay-action-alert', 'Failed: ' + e.message, 'error');
             }
 
             setLoading('pay-connect-btn', false);
         }
 
-        // Approve USDC
         async function approveUSDC() {
             setLoading('pay-approve-btn', true);
-            showAlert('pay-action-alert', 'Confirm approval in wallet...', 'info');
+            showAlert('pay-action-alert', 'Confirm in wallet...', 'info');
 
             try {
                 const usdc = new ethers.Contract(CONFIG.USDC, ERC20_ABI, state.signer);
                 const tx = await usdc.approve(CONFIG.CONTRACT, state.deal.amount);
-                showAlert('pay-action-alert', 'Waiting for confirmation...', 'info');
+                showAlert('pay-action-alert', 'Confirming...', 'info');
                 await tx.wait();
 
                 hide('pay-approve-btn');
                 show('pay-deposit-btn');
-                showAlert('pay-action-alert', 'Approved! Now deposit funds.', 'success');
+                showAlert('pay-action-alert', 'Approved! Now deposit.', 'success');
             } catch (e) {
-                console.error(e);
-                showAlert('pay-action-alert', e.code === 4001 ? 'Cancelled' : 'Approval failed', 'error');
+                showAlert('pay-action-alert', e.code === 4001 ? 'Cancelled' : 'Failed', 'error');
             }
 
             setLoading('pay-approve-btn', false);
         }
 
-        // Deposit USDC
         async function depositUSDC() {
             setLoading('pay-deposit-btn', true);
-            showAlert('pay-action-alert', 'Confirm deposit in wallet...', 'info');
+            showAlert('pay-action-alert', 'Confirm deposit...', 'info');
 
             try {
                 const escrow = new ethers.Contract(CONFIG.CONTRACT, ESCROW_ABI, state.signer);
@@ -777,26 +537,23 @@
                 showAlert('pay-action-alert', 'Processing...', 'info');
                 await tx.wait();
 
-                // Success
                 $('pay-success-icon').textContent = '✓';
                 $('pay-success-title').textContent = 'Payment Complete!';
-                $('pay-success-msg').textContent = 'Funds are locked in escrow.';
+                $('pay-success-msg').textContent = 'Funds locked in escrow.';
                 $('pay-tx-link').href = `${CONFIG.EXPLORER}/tx/${tx.hash}`;
 
                 hide('pay-deal');
                 show('pay-success');
             } catch (e) {
-                console.error(e);
-                showAlert('pay-action-alert', e.code === 4001 ? 'Cancelled' : 'Deposit failed: ' + e.message, 'error');
+                showAlert('pay-action-alert', e.code === 4001 ? 'Cancelled' : 'Failed: ' + e.message, 'error');
             }
 
             setLoading('pay-deposit-btn', false);
         }
 
-        // Release Funds
         async function releaseFunds() {
             setLoading('pay-release-btn', true);
-            showAlert('pay-action-alert', 'Confirm release in wallet...', 'info');
+            showAlert('pay-action-alert', 'Confirm release...', 'info');
 
             try {
                 const escrow = new ethers.Contract(CONFIG.CONTRACT, ESCROW_ABI, state.signer);
@@ -804,7 +561,6 @@
                 showAlert('pay-action-alert', 'Processing...', 'info');
                 await tx.wait();
 
-                // Success
                 $('pay-success-icon').textContent = '💸';
                 $('pay-success-title').textContent = 'Funds Released!';
                 $('pay-success-msg').textContent = 'Payment sent to seller.';
@@ -813,14 +569,18 @@
                 hide('pay-deal');
                 show('pay-success');
             } catch (e) {
-                console.error(e);
-                showAlert('pay-action-alert', e.code === 4001 ? 'Cancelled' : 'Release failed: ' + e.message, 'error');
+                showAlert('pay-action-alert', e.code === 4001 ? 'Cancelled' : 'Failed: ' + e.message, 'error');
             }
 
             setLoading('pay-release-btn', false);
         }
 
-        // Reset Pay Tab
+        function openDispute() {
+            const dealId = state.deal.id;
+            window.open(`https://t.me/trustlockbot?start=dispute_${dealId}`, '_blank');
+            showAlert('pay-action-alert', `Opening Telegram...\n\nUse: /dispute ${dealId} [reason]`, 'info');
+        }
+
         function resetPay() {
             hide('pay-deal');
             hide('pay-success');
@@ -831,46 +591,26 @@
             show('pay-connect-btn');
             clearAlert('pay-action-alert');
             clearAlert('pay-search-alert');
-            state.deal = null;
-            state.signer = null;
-            state.address = null;
+            $('pay-deal-input').value = '';
+            state = { deal: null, signer: null, address: null, action: 'deposit' };
         }
 
-        // Generate Deal ID
         function generateDealId() {
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
             let code = '';
-            for (let i = 0; i < 4; i++) {
-                code += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
+            for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
             return `TL-${code}`;
         }
 
-        // Create Deal (Sell tab)
         async function createDeal() {
             const seller = $('sell-seller').value.trim();
             const buyer = $('sell-buyer').value.trim();
             const amount = parseFloat($('sell-amount').value);
-            const desc = $('sell-desc').value.trim();
 
-            // Validate
-            if (!ethers.utils.isAddress(seller)) {
-                showAlert('sell-alert', 'Invalid seller wallet address', 'error');
-                return;
-            }
-            if (!ethers.utils.isAddress(buyer)) {
-                showAlert('sell-alert', 'Invalid buyer wallet address', 'error');
-                return;
-            }
-            if (!amount || amount < 1 || amount > 500) {
-                showAlert('sell-alert', 'Amount must be between 1-500 USDC', 'error');
-                return;
-            }
-
-            if (!window.ethereum) {
-                showAlert('sell-alert', 'Connect a wallet to create deals', 'warning');
-                return;
-            }
+            if (!ethers.utils.isAddress(seller)) return showAlert('sell-alert', 'Invalid seller address', 'error');
+            if (!ethers.utils.isAddress(buyer)) return showAlert('sell-alert', 'Invalid buyer address', 'error');
+            if (!amount || amount < 1 || amount > 500) return showAlert('sell-alert', 'Amount: 1-500 USDC', 'error');
+            if (!window.ethereum) return showAlert('sell-alert', 'Connect wallet first', 'warning');
 
             setLoading('sell-create-btn', true);
             clearAlert('sell-alert');
@@ -879,7 +619,6 @@
                 const provider = new ethers.providers.Web3Provider(window.ethereum);
                 await provider.send("eth_requestAccounts", []);
 
-                // Check network
                 const network = await provider.getNetwork();
                 if (network.chainId !== CONFIG.CHAIN_ID) {
                     await window.ethereum.request({
@@ -894,13 +633,11 @@
                 const dealId = generateDealId();
                 const amountWei = ethers.utils.parseUnits(amount.toString(), 6);
 
-                showAlert('sell-alert', 'Confirm transaction in wallet...', 'info');
+                showAlert('sell-alert', 'Confirm in wallet...', 'info');
                 const tx = await escrow.createDeal(dealId, seller, buyer, amountWei);
-
-                showAlert('sell-alert', 'Creating deal on blockchain...', 'info');
+                showAlert('sell-alert', 'Creating...', 'info');
                 await tx.wait();
 
-                // Success
                 $('sell-deal-id').textContent = dealId;
                 $('sell-tx-link').href = `${CONFIG.EXPLORER}/tx/${tx.hash}`;
 
@@ -909,14 +646,12 @@
                 clearAlert('sell-alert');
 
             } catch (e) {
-                console.error(e);
                 showAlert('sell-alert', e.code === 4001 ? 'Cancelled' : 'Failed: ' + e.message, 'error');
             }
 
             setLoading('sell-create-btn', false);
         }
 
-        // Reset Sell Tab
         function resetSell() {
             hide('sell-result');
             show('sell-create-btn');
@@ -927,12 +662,10 @@
             clearAlert('sell-alert');
         }
 
-        // Check Status
         async function checkStatus() {
             const input = $('status-deal-input').value.trim().toUpperCase();
-
             if (!input.match(/^TL-[A-Z0-9]{4}$/)) {
-                showAlert('status-alert', 'Enter a valid deal ID (TL-XXXX)', 'error');
+                showAlert('status-alert', 'Enter valid deal ID (TL-XXXX)', 'error');
                 return;
             }
 
@@ -944,14 +677,14 @@
 
                 const chainId = await contract.externalIdToDealId(input);
                 if (chainId.toString() === '0') {
-                    showAlert('status-alert', 'Deal not found on blockchain.', 'warning');
+                    showAlert('status-alert', 'Deal not found.', 'warning');
                     return;
                 }
 
                 const deal = await contract.getDealByExternalId(input);
                 const status = deal[4];
-                const statuses = ['Pending Payment', 'Funded (In Escrow)', 'Completed', 'Refunded', 'Disputed', 'Cancelled'];
-                const statusClasses = ['status-pending', 'status-funded', 'status-completed', 'status-completed', 'status-pending', 'status-pending'];
+                const statuses = ['Pending Payment', 'Funded', 'Completed', 'Refunded', 'Disputed', 'Cancelled'];
+                const classes = ['status-pending', 'status-funded', 'status-completed', 'status-completed', 'status-disputed', 'status-pending'];
 
                 $('status-deal-id').textContent = input;
                 $('status-amount').textContent = ethers.utils.formatUnits(deal[3], 6);
@@ -959,31 +692,24 @@
                 $('status-buyer').textContent = short(deal[2]);
                 $('status-text').textContent = statuses[status];
                 $('status-badge').textContent = statuses[status].split(' ')[0];
-                $('status-badge').className = 'deal-status ' + statusClasses[status];
+                $('status-badge').className = 'deal-status ' + classes[status];
 
                 show('status-result');
 
             } catch (e) {
-                console.error(e);
                 showAlert('status-alert', 'Error checking status', 'error');
             }
         }
 
-        // Auto-load from URL params
         window.onload = function() {
             const params = new URLSearchParams(window.location.search);
             const deal = params.get('deal');
-            const action = params.get('action');
 
             if (deal) {
                 $('pay-deal-input').value = deal.toUpperCase();
-                if (action === 'release') {
-                    state.action = 'release';
-                }
-                searchDeal('pay');
+                searchDeal();
             }
 
-            // Format deal inputs
             ['pay-deal-input', 'status-deal-input'].forEach(id => {
                 $(id)?.addEventListener('input', function(e) {
                     e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
