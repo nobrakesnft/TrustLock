@@ -72,7 +72,7 @@ async function isAnyAdmin(ctx) {
 
 async function logAdminAction(action, dealId, adminTelegramId, adminUsername, targetUser, details) {
   try {
-    await supabase.from('admin_logs').insert({
+    const { error } = await supabase.from('admin_logs').insert({
       action,
       deal_id: dealId,
       admin_telegram_id: adminTelegramId,
@@ -80,6 +80,7 @@ async function logAdminAction(action, dealId, adminTelegramId, adminUsername, ta
       target_user: targetUser,
       details
     });
+    if (error) console.error('Log insert error:', error.message);
   } catch (e) {
     console.error('Log error:', e.message);
   }
@@ -539,7 +540,7 @@ bot.command('review', async (ctx) => {
 });
 
 bot.command('rep', async (ctx) => {
-  const match = ctx.message.text.match(/^\/rep(?:\s+@(\w+))?$/i);
+  const match = ctx.message.text.match(/^\/rep(?:@\w+)?(?:\s+@(\w+))?$/i);
   const targetUsername = match?.[1] || ctx.from.username;
 
   const { data: deals } = await supabase
@@ -553,12 +554,23 @@ bot.command('rep', async (ctx) => {
 
   let badge = '🆕 New';
   if (total >= 50) badge = '💎 Elite';
-  else if (total >= 25) badge = '🏆 Top';
-  else if (total >= 10) badge = '⭐ Trusted';
-  else if (total >= 3) badge = '✓ Verified';
-  else if (total >= 1) badge = '👤 Active';
+  else if (total >= 25) badge = '🏆 Pro Trader';
+  else if (total >= 10) badge = '⭐ Proven Trader';
+  else if (total >= 4) badge = '📈 Established';
+  else if (total >= 2) badge = '👤 Active';
 
-  await ctx.reply(`📊 @${targetUsername}\n\n${badge}\nDeals: ${total}\nVolume: ${volume.toFixed(0)} USDC`);
+  let reviews = '';
+  for (const d of deals || []) {
+    const isSeller = d.seller_username.toLowerCase() === targetUsername.toLowerCase();
+    const rating = isSeller ? d.buyer_rating : d.seller_rating;
+    const comment = isSeller ? d.buyer_review : d.seller_review;
+    const reviewer = isSeller ? d.buyer_username : d.seller_username;
+    if (rating) reviews += `${'⭐'.repeat(rating)} by @${reviewer}${comment ? ` - ${comment}` : ''}\n`;
+  }
+
+  let msg = `📊 @${targetUsername}\n\n${badge}\nDeals: ${total}\nVolume: ${volume.toFixed(0)} USDC`;
+  if (reviews) msg += `\n\nReviews:\n${reviews.trim()}`;
+  await ctx.reply(msg);
 });
 
 // ============ ADMIN COMMANDS ============
@@ -640,6 +652,7 @@ bot.command('removemod', async (ctx) => {
   const { error } = await supabase.from('moderators').update({ is_active: false }).ilike('username', match[1]);
   if (error) return ctx.reply(`Failed: ${error.message}`);
 
+  await logAdminAction('remove_mod', null, ctx.from.id, ctx.from.username, match[1], 'Removed moderator');
   await ctx.reply(`✅ @${match[1]} removed from moderators.`);
 });
 
@@ -742,6 +755,7 @@ bot.command('unassign', async (ctx) => {
     assigned_to_username: null
   }).ilike('deal_id', deal.deal_id);
 
+  await logAdminAction('unassign', deal.deal_id, ctx.from.id, ctx.from.username, deal.assigned_to_username, 'Unassigned');
   await ctx.reply(`✅ ${deal.deal_id} unassigned.`);
 });
 
@@ -859,7 +873,7 @@ bot.command('resolve', async (ctx) => {
 bot.command('logs', async (ctx) => {
   if (!isBotmaster(ctx.from.username)) return ctx.reply('Botmaster only.');
 
-  const match = ctx.message.text.match(/^\/logs(?:\s+(TL-\w+))?$/i);
+  const match = ctx.message.text.match(/^\/logs(?:@\w+)?(?:\s+(TL-\w+))?$/i);
   const dealId = match?.[1];
 
   let query = supabase.from('admin_logs').select('*').order('created_at', { ascending: false }).limit(15);
@@ -871,7 +885,7 @@ bot.command('logs', async (ctx) => {
 
   let msg = `📋 Logs${dealId ? ` for ${dealId.toUpperCase()}` : ''}:\n\n`;
   for (const l of data) {
-    const date = new Date(l.created_at).toLocaleDateString();
+    const date = new Date(l.created_at).toLocaleString();
     msg += `${date} @${l.admin_username}: ${l.action}`;
     if (l.deal_id) msg += ` (${l.deal_id})`;
     if (l.target_user) msg += ` → ${l.target_user}`;
@@ -908,6 +922,30 @@ async function pollDeals() {
 
           const { data: buyer } = await supabase.from('users').select('telegram_id').ilike('username', deal.buyer_username).single();
           if (buyer?.telegram_id) try { await bot.api.sendMessage(buyer.telegram_id, `✅ ${deal.deal_id} deposited!\n\n/release ${deal.deal_id} when ready.`); } catch (e) {}
+        }
+      } catch (e) {}
+    }
+
+    const { data: funded } = await supabase
+      .from('deals')
+      .select('*')
+      .eq('status', 'funded')
+      .not('contract_deal_id', 'is', null);
+
+    for (const deal of funded || []) {
+      try {
+        const chainId = await escrowContract.externalIdToDealId(deal.deal_id);
+        if (chainId.toString() === '0') continue;
+
+        const onChain = await escrowContract.deals(chainId);
+        if (Number(onChain[4]) === 2) {
+          console.log(`Completed on-chain: ${deal.deal_id}`);
+          await supabase.from('deals').update({ status: 'completed', completed_at: new Date().toISOString() }).ilike('deal_id', deal.deal_id);
+
+          if (deal.seller_telegram_id) try { await bot.api.sendMessage(deal.seller_telegram_id, `✅ ${deal.deal_id}\n\nFunds released to you!`); } catch (e) {}
+
+          const { data: buyer } = await supabase.from('users').select('telegram_id').ilike('username', deal.buyer_username).single();
+          if (buyer?.telegram_id) try { await bot.api.sendMessage(buyer.telegram_id, `✅ ${deal.deal_id}\n\nDeal completed! Funds released to seller.`); } catch (e) {}
         }
       } catch (e) {}
     }
