@@ -22,13 +22,13 @@ async function main() {
 
   console.log("USDC Address:", usdcAddress);
 
-  const TrustLockEscrow = await hre.ethers.getContractFactory("TrustLockEscrow");
-  const escrow = await TrustLockEscrow.deploy(usdcAddress);
+  const DealPactEscrow = await hre.ethers.getContractFactory("DealPactEscrow");
+  const escrow = await DealPactEscrow.deploy(usdcAddress);
 
   await escrow.waitForDeployment();
 
   const address = await escrow.getAddress();
-  console.log("TrustLockEscrow deployed to:", address);
+  console.log("DealPactEscrow deployed to:", address);
   console.log("");
   console.log("Save this address! You'll need it for the bot.");
   console.log("");

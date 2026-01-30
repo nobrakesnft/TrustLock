@@ -3,8 +3,9 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 
-contract TrustLockEscrow is ReentrancyGuard {
+contract DealPactEscrow is ReentrancyGuard, Pausable {
     // USDC on Base mainnet: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
     // USDC on Base Sepolia (testnet): 0x036CbD53842c5426634e7929541eC2318f3dCF7e
     IERC20 public immutable usdc;
@@ -26,7 +27,7 @@ contract TrustLockEscrow is ReentrancyGuard {
     }
 
     struct Deal {
-        string externalId;      // TL-XXXX from bot
+        string externalId;      // DP-XXXX from bot
         address seller;
         address buyer;
         uint256 amount;
@@ -49,6 +50,8 @@ contract TrustLockEscrow is ReentrancyGuard {
     event DealRefunded(uint256 indexed dealId, address buyer, uint256 amount);
     event DealDisputed(uint256 indexed dealId, address disputedBy);
     event DealCancelled(uint256 indexed dealId);
+    event FeePercentChanged(uint256 oldFee, uint256 newFee);
+    event OwnershipTransferred(address indexed oldOwner, address indexed newOwner);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
@@ -66,7 +69,7 @@ contract TrustLockEscrow is ReentrancyGuard {
         address _seller,
         address _buyer,
         uint256 _amount
-    ) external returns (uint256) {
+    ) external whenNotPaused returns (uint256) {
         require(_seller != address(0), "Invalid seller");
         require(_buyer != address(0), "Invalid buyer");
         require(_seller != _buyer, "Seller cannot be buyer");
@@ -93,7 +96,7 @@ contract TrustLockEscrow is ReentrancyGuard {
     }
 
     // Buyer deposits USDC to fund the deal
-    function deposit(uint256 _dealId) external nonReentrant {
+    function deposit(uint256 _dealId) external nonReentrant whenNotPaused {
         Deal storage deal = deals[_dealId];
         require(deal.buyer != address(0), "Deal not found");
         require(msg.sender == deal.buyer, "Only buyer can deposit");
@@ -225,7 +228,9 @@ contract TrustLockEscrow is ReentrancyGuard {
     // Owner functions
     function setFeePercent(uint256 _newFee) external onlyOwner {
         require(_newFee <= 500, "Fee too high"); // Max 5%
+        uint256 oldFee = feePercent;
         feePercent = _newFee;
+        emit FeePercentChanged(oldFee, _newFee);
     }
 
     function setMaxEscrowAmount(uint256 _newMax) external onlyOwner {
@@ -234,6 +239,16 @@ contract TrustLockEscrow is ReentrancyGuard {
 
     function transferOwnership(address _newOwner) external onlyOwner {
         require(_newOwner != address(0), "Invalid address");
+        address oldOwner = owner;
         owner = _newOwner;
+        emit OwnershipTransferred(oldOwner, _newOwner);
+    }
+
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
     }
 }

@@ -1,4 +1,4 @@
-# TrustLock MVP — Product Requirements Document
+# DealPact MVP — Product Requirements Document
 
 > Generated: January 2025
 > Status: Ready to Build
@@ -8,7 +8,7 @@
 
 ## 1. Executive Summary
 
-TrustLock is a Telegram bot that lets crypto freelancers and digital goods sellers get paid safely through smart contract escrow on Base. The buyer deposits USDC, the seller delivers, and funds release only when both agree — or the platform owner resolves disputes. No website needed, no complex wallet UX, just simple bot commands in Telegram where crypto communities already live.
+DealPact is a Telegram bot that lets crypto freelancers and digital goods sellers get paid safely through smart contract escrow on Base. The buyer deposits USDC, the seller delivers, and funds release only when both agree — or the platform owner resolves disputes. No website needed, no complex wallet UX, just simple bot commands in Telegram where crypto communities already live.
 
 ---
 
@@ -66,7 +66,7 @@ Sells game keys, premium accounts, software licenses in Telegram groups. Needs b
 
 ### Key Differentiators
 
-| Feature | TrustLock | Competitors |
+| Feature | DealPact | Competitors |
 |---------|-----------|-------------|
 | **Interface** | Telegram bot | Website |
 | **Onboarding** | 0 steps, just use bot | Create account, connect wallet, etc. |
@@ -227,7 +227,7 @@ ACCEPTANCE CRITERIA:
                           │
                           ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    TRUSTLOCK BOT                             │
+│                    DEALPACT BOT                             │
 │                    (Node.js + grammY)                        │
 │                                                              │
 │   • Parses commands                                          │
@@ -293,7 +293,7 @@ cancel(dealId) → Both parties must call, returns to buyer
 
 ### Month 2+: Organic Growth
 - Let virality work (both parties must join)
-- Add "Powered by TrustLock" to deal confirmations
+- Add "Powered by DealPact" to deal confirmations
 
 ---
 

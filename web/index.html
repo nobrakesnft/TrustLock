@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DealPact - Secure Escrow Payment</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js" integrity="sha384-Htz1SE4Sl5aitpvFgr2j0sfsGUIuSXI6t8hEyrlQ93zflEF3a29bH2AvkUROUw7J" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU" crossorigin="anonymous"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -421,7 +421,7 @@
             <div class="card">
                 <div class="card-title">Find Your Deal</div>
                 <div class="input-group">
-                    <input type="text" id="deal-input" placeholder="TL-XXXX" maxlength="7" />
+                    <input type="text" id="deal-input" placeholder="DP-XXXX" maxlength="7" />
                 </div>
                 <button class="btn btn-primary" id="search-btn" onclick="searchDeal()">
                     Find Deal
@@ -434,7 +434,7 @@
         <div id="deal-section" class="hidden">
             <div class="card">
                 <div class="deal-header">
-                    <div class="deal-id" id="disp-deal-id">TL-XXXX</div>
+                    <div class="deal-id" id="disp-deal-id">DP-XXXX</div>
                     <div class="deal-status">Awaiting Payment</div>
                 </div>
                 <div class="deal-amount">
@@ -530,7 +530,7 @@
                 <p style="color:#888;margin-bottom:24px;">Your funds are now safely locked in escrow.</p>
                 <div class="info-row">
                     <span class="info-label">Deal ID</span>
-                    <span class="info-value" id="success-deal">TL-XXXX</span>
+                    <span class="info-value" id="success-deal">DP-XXXX</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Amount</span>
@@ -547,7 +547,7 @@
     <script>
         // Configuration
         const CONFIG = {
-            CONTRACT: '0x930e2828EA1D9D8cFa5a934A133f2d290924d9bC',
+            CONTRACT: '0x116511753bf00671bc321f2e3364159Fe502ed22',
             USDC: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
             RPC: 'https://sepolia.base.org',
             CHAIN_ID: 84532,
@@ -606,8 +606,8 @@
         async function searchDeal() {
             const input = $('deal-input').value.trim().toUpperCase();
 
-            if (!input.match(/^TL-[A-Z0-9]{4}$/)) {
-                showAlert('search-alert', 'Enter a valid deal ID (TL-XXXX)', 'error');
+            if (!input.match(/^DP-[A-Z0-9]{4}$/)) {
+                showAlert('search-alert', 'Enter a valid deal ID (DP-XXXX)', 'error');
                 return;
             }
 

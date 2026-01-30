@@ -17,6 +17,7 @@ CREATE INDEX IF NOT EXISTS idx_evidence_deal_id ON public.evidence(deal_id);
 -- Enable RLS (Row Level Security)
 ALTER TABLE public.evidence ENABLE ROW LEVEL SECURITY;
 
--- Allow all operations for authenticated users (bot uses service key)
-CREATE POLICY "Allow all for service role" ON public.evidence
-  FOR ALL USING (true) WITH CHECK (true);
+-- Only service_role (bot backend) can access evidence
+DROP POLICY IF EXISTS "Allow all for service role" ON public.evidence;
+CREATE POLICY "evidence_service_only" ON public.evidence
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');

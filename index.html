@@ -215,14 +215,14 @@
 
         <!-- Search Bar - Always Visible -->
         <div class="search-bar">
-            <input type="text" id="deal-search" placeholder="TL-XXXX" maxlength="7" />
+            <input type="text" id="deal-search" placeholder="DP-XXXX" maxlength="7" />
             <button onclick="searchDeal()">Find Deal</button>
         </div>
 
         <!-- Deal Flow - Above Tabs -->
         <div id="buy-deal" class="hidden">
             <div class="deal-box">
-                <div class="deal-id" id="deal-id">TL-XXXX</div>
+                <div class="deal-id" id="deal-id">DP-XXXX</div>
                 <div class="deal-amount"><span id="deal-amount">0</span> <span>USDC</span></div>
                 <div class="deal-status status-pending" id="deal-status">Pending</div>
                 <div class="deal-info">
@@ -276,7 +276,7 @@
                 <div class="steps">
                     <div class="step">
                         <div class="step-num">1</div>
-                        <div class="step-text"><strong>Get Deal ID</strong> from seller (e.g., TL-A7X9)</div>
+                        <div class="step-text"><strong>Get Deal ID</strong> from seller (e.g., DP-A7X9)</div>
                     </div>
                     <div class="step">
                         <div class="step-num">2</div>
@@ -284,7 +284,7 @@
                     </div>
                     <div class="step">
                         <div class="step-num">3</div>
-                        <div class="step-text"><strong>Fund the deal:</strong> /fund TL-XXXX</div>
+                        <div class="step-text"><strong>Fund the deal:</strong> /fund DP-XXXX</div>
                     </div>
                     <div class="step">
                         <div class="step-num">4</div>
@@ -296,7 +296,7 @@
                     </div>
                     <div class="step">
                         <div class="step-num">6</div>
-                        <div class="step-text"><strong>Release payment:</strong> /release TL-XXXX and sign on site</div>
+                        <div class="step-text"><strong>Release payment:</strong> /release DP-XXXX and sign on site</div>
                     </div>
                 </div>
             </div>
@@ -331,7 +331,7 @@
                     </div>
                     <div class="step">
                         <div class="step-num">4</div>
-                        <div class="step-text"><strong>Share Deal ID</strong> with buyer (e.g., TL-A7X9)</div>
+                        <div class="step-text"><strong>Share Deal ID</strong> with buyer (e.g., DP-A7X9)</div>
                     </div>
                     <div class="step">
                         <div class="step-num">5</div>
@@ -377,7 +377,7 @@
         <!-- Footer -->
         <div class="footer">
             <a href="https://t.me/DealPactbot" target="_blank">Telegram Bot</a> •
-            <a href="https://sepolia.basescan.org/address/0x930e2828EA1D9D8cFa5a934A133f2d290924d9bC" target="_blank">Contract</a>
+            <a href="https://sepolia.basescan.org/address/0x116511753bf00671bc321f2e3364159Fe502ed22" target="_blank">Contract</a>
             <br><br>
             DealPact acts as a neutral escrow intermediary. Admins will never contact users privately.
             <br><br>
@@ -387,7 +387,7 @@
 
     <script>
         const CONFIG = {
-            CONTRACT: '0x930e2828EA1D9D8cFa5a934A133f2d290924d9bC',
+            CONTRACT: '0x116511753bf00671bc321f2e3364159Fe502ed22',
             USDC: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
             RPC: 'https://sepolia.base.org',
             CHAIN_ID: 84532,
@@ -465,8 +465,8 @@
 
         async function searchDeal() {
             const input = $('deal-search').value.trim().toUpperCase();
-            if (!input.match(/^TL-[A-Z0-9]{4}$/)) {
-                alert('Enter valid Deal ID (e.g., TL-A7X9)');
+            if (!input.match(/^DP-[A-Z0-9]{4}$/)) {
+                alert('Enter valid Deal ID (e.g., DP-A7X9)');
                 return;
             }
 

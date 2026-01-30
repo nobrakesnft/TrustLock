@@ -5,6 +5,14 @@ const { Bot } = require('grammy');
 const { createClient } = require('@supabase/supabase-js');
 const { ethers } = require('ethers');
 
+// Validate required env vars on startup
+const REQUIRED_ENV = ['BOT_TOKEN', 'SUPABASE_URL', 'SUPABASE_KEY', 'CONTRACT_ADDRESS', 'PRIVATE_KEY', 'ADMIN_TELEGRAM_IDS'];
+const missingEnv = REQUIRED_ENV.filter(k => !process.env[k]);
+if (missingEnv.length) {
+  console.error('FATAL: Missing required env vars:', missingEnv.join(', '));
+  process.exit(1);
+}
+
 // Initialize
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 const provider = new ethers.JsonRpcProvider('https://sepolia.base.org');
@@ -24,8 +32,28 @@ const ESCROW_ABI = [
 const escrowContract = new ethers.Contract(CONTRACT_ADDRESS, ESCROW_ABI, wallet);
 const bot = new Bot(process.env.BOT_TOKEN);
 
-// Botmaster usernames (full power)
-const BOTMASTER_USERNAMES = (process.env.ADMIN_USERNAMES || 'nobrakesnft').toLowerCase().split(',').map(s => s.trim());
+// Botmaster Telegram IDs (not usernames — IDs are immutable and can't be spoofed)
+const BOTMASTER_IDS = (process.env.ADMIN_TELEGRAM_IDS || '').split(',').map(s => s.trim()).filter(Boolean).map(Number);
+
+// Frontend URL (don't hardcode GitHub Pages)
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://nobrakesnft.github.io/DealPact';
+
+// Rate limiting: per-user cooldown map
+const rateLimitMap = new Map();
+function isRateLimited(userId, cooldownMs = 3000) {
+  const now = Date.now();
+  const last = rateLimitMap.get(userId) || 0;
+  if (now - last < cooldownMs) return true;
+  rateLimitMap.set(userId, now);
+  return false;
+}
+// Cleanup stale entries every 5 minutes
+setInterval(() => {
+  const cutoff = Date.now() - 60000;
+  for (const [k, v] of rateLimitMap) {
+    if (v < cutoff) rateLimitMap.delete(k);
+  }
+}, 300000);
 
 // ============ HELPER FUNCTIONS ============
 
@@ -33,7 +61,7 @@ function generateDealId() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
   for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
-  return `TL-${code}`;
+  return `DP-${code}`;
 }
 
 async function getDeal(dealId) {
@@ -46,8 +74,8 @@ async function getDeal(dealId) {
   return { deal: data, error };
 }
 
-function isBotmaster(username) {
-  return BOTMASTER_USERNAMES.includes(username?.toLowerCase());
+function isBotmaster(telegramId) {
+  return BOTMASTER_IDS.includes(telegramId);
 }
 
 async function isModerator(telegramId) {
@@ -65,7 +93,7 @@ async function isModerator(telegramId) {
 }
 
 async function isAnyAdmin(ctx) {
-  if (isBotmaster(ctx.from.username)) return { isAdmin: true, role: 'botmaster' };
+  if (isBotmaster(ctx.from.id)) return { isAdmin: true, role: 'botmaster' };
   if (await isModerator(ctx.from.id)) return { isAdmin: true, role: 'moderator' };
   return { isAdmin: false, role: null };
 }
@@ -127,7 +155,7 @@ bot.command('start', async (ctx) => {
     return ctx.reply(`⚠️ Open Dispute for ${dealId}\n\nCommand: /dispute ${dealId} [reason]`);
   }
 
-  await ctx.reply(`🔒 DealPact - Secure Crypto Escrow\n\nDealPact acts as a neutral escrow intermediary.\nFunds are held on-chain and released only by buyer action or admin resolution.\n\n1. Seller: /new @buyer 50 desc\n2. Buyer: /fund TL-XXXX\n3. Deliver goods\n4. Buyer: /release TL-XXXX\n\nCommands: /help\n\n⚠️ Admins will NEVER DM you first.\nOnly interact with admins inside this bot.`);
+  await ctx.reply(`🔒 DealPact - Secure Crypto Escrow\n\nDealPact acts as a neutral escrow intermediary.\nFunds are held on-chain and released only by buyer action or admin resolution.\n\n1. Seller: /new @buyer 50 desc\n2. Buyer: /fund DP-XXXX\n3. Deliver goods\n4. Buyer: /release DP-XXXX\n\nCommands: /help\n\n⚠️ Admins will NEVER DM you first.\nOnly interact with admins inside this bot.`);
 });
 
 bot.command('help', async (ctx) => {
@@ -142,20 +170,20 @@ SETUP: /wallet 0x...
 
 DEALS
 /new @buyer 100 desc
-/fund TL-XXXX
-/status TL-XXXX
+/fund DP-XXXX
+/status DP-XXXX
 /deals
-/release TL-XXXX
-/cancel TL-XXXX
+/release DP-XXXX
+/cancel DP-XXXX
 
 DISPUTES
-/dispute TL-XXXX reason
-/evidence TL-XXXX msg
-/viewevidence TL-XXXX
-/canceldispute TL-XXXX
+/dispute DP-XXXX reason
+/evidence DP-XXXX msg
+/viewevidence DP-XXXX
+/canceldispute DP-XXXX
 
 RATINGS
-/review TL-XXXX 5 Great!
+/review DP-XXXX 5 Great!
 /rep @user\n\n🔐 Safety: DealPact admins will never DM you first.${adminNote}`);
 });
 
@@ -211,8 +239,8 @@ bot.command('new', async (ctx) => {
 });
 
 bot.command('status', async (ctx) => {
-  const match = ctx.message.text.match(/^\/status\s+(TL-\w+)$/i);
-  if (!match) return ctx.reply('Usage: /status TL-XXXX');
+  const match = ctx.message.text.match(/^\/status\s+(DP-\w+)$/i);
+  if (!match) return ctx.reply('Usage: /status DP-XXXX');
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
@@ -262,8 +290,8 @@ bot.command('deals', async (ctx) => {
 
 bot.command('fund', async (ctx) => {
   const username = ctx.from.username;
-  const match = ctx.message.text.match(/^\/fund\s+(TL-\w+)$/i);
-  if (!match) return ctx.reply('Usage: /fund TL-XXXX');
+  const match = ctx.message.text.match(/^\/fund\s+(DP-\w+)$/i);
+  if (!match) return ctx.reply('Usage: /fund DP-XXXX');
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
@@ -280,7 +308,7 @@ bot.command('fund', async (ctx) => {
     const existingId = await escrowContract.externalIdToDealId(deal.deal_id);
     if (existingId.toString() !== '0') {
       await supabase.from('deals').update({ contract_deal_id: deal.deal_id }).ilike('deal_id', deal.deal_id);
-      return ctx.reply(`👇 TAP TO DEPOSIT:\nhttps://nobrakesnft.github.io/DealPact?deal=${deal.deal_id}`);
+      return ctx.reply(`👇 TAP TO DEPOSIT:\n${FRONTEND_URL}?deal=${deal.deal_id}`);
     }
   } catch (e) {}
 
@@ -291,7 +319,7 @@ bot.command('fund', async (ctx) => {
     await ctx.reply(`Tx: https://sepolia.basescan.org/tx/${tx.hash}`);
     await tx.wait();
     await supabase.from('deals').update({ contract_deal_id: deal.deal_id, tx_hash: tx.hash }).ilike('deal_id', deal.deal_id);
-    await ctx.reply(`✅ Ready!\n\n👇 TAP TO DEPOSIT:\nhttps://nobrakesnft.github.io/DealPact?deal=${deal.deal_id}`);
+    await ctx.reply(`✅ Ready!\n\n👇 TAP TO DEPOSIT:\n${FRONTEND_URL}?deal=${deal.deal_id}`);
   } catch (e) {
     await ctx.reply(`Failed: ${e.shortMessage || e.message}`);
   }
@@ -299,8 +327,8 @@ bot.command('fund', async (ctx) => {
 
 bot.command('release', async (ctx) => {
   const username = ctx.from.username;
-  const match = ctx.message.text.match(/^\/release\s+(TL-\w+)(?:\s+(confirm))?$/i);
-  if (!match) return ctx.reply('Usage: /release TL-XXXX');
+  const match = ctx.message.text.match(/^\/release\s+(DP-\w+)(?:\s+(confirm))?$/i);
+  if (!match) return ctx.reply('Usage: /release DP-XXXX');
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
@@ -314,14 +342,14 @@ bot.command('release', async (ctx) => {
     return ctx.reply(`Cannot release. Status: ${deal.status}`);
   }
 
-  await ctx.reply(`📤 Release: ${deal.deal_id}\nAmount: ${deal.amount} USDC\n\n👇 TAP TO RELEASE:\nhttps://nobrakesnft.github.io/DealPact?deal=${deal.deal_id}&action=release`);
+  await ctx.reply(`📤 Release: ${deal.deal_id}\nAmount: ${deal.amount} USDC\n\n👇 TAP TO RELEASE:\n${FRONTEND_URL}?deal=${deal.deal_id}&action=release`);
 });
 
 bot.command('cancel', async (ctx) => {
   const userId = ctx.from.id;
   const username = ctx.from.username;
-  const match = ctx.message.text.match(/^\/cancel\s+(TL-\w+)$/i);
-  if (!match) return ctx.reply('Usage: /cancel TL-XXXX');
+  const match = ctx.message.text.match(/^\/cancel\s+(DP-\w+)$/i);
+  if (!match) return ctx.reply('Usage: /cancel DP-XXXX');
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
@@ -339,8 +367,8 @@ bot.command('cancel', async (ctx) => {
 bot.command('dispute', async (ctx) => {
   const userId = ctx.from.id;
   const username = ctx.from.username || `user_${userId}`;
-  const match = ctx.message.text.match(/^\/dispute\s+(TL-\w+)(?:\s+(.+))?$/i);
-  if (!match) return ctx.reply('Usage: /dispute TL-XXXX reason');
+  const match = ctx.message.text.match(/^\/dispute\s+(DP-\w+)(?:\s+(.+))?$/i);
+  if (!match) return ctx.reply('Usage: /dispute DP-XXXX reason');
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
@@ -397,23 +425,20 @@ bot.command('dispute', async (ctx) => {
     } catch (e) {}
   }
 
-  // Notify botmasters
-  for (const admin of BOTMASTER_USERNAMES) {
-    const { data: adminUser } = await supabase.from('users').select('telegram_id').ilike('username', admin).single();
-    if (adminUser?.telegram_id) {
-      try {
-        await bot.api.sendMessage(adminUser.telegram_id, `🔔 DISPUTE: ${deal.deal_id}\n\n${deal.amount} USDC\n@${deal.seller_username} vs @${deal.buyer_username}\nBy: @${username}\nReason: ${reason}\n\n/disputes to view all`);
-      } catch (e) {}
-    }
+  // Notify botmasters by ID (no DB lookup needed)
+  for (const adminId of BOTMASTER_IDS) {
+    try {
+      await bot.api.sendMessage(adminId, `🔔 DISPUTE: ${deal.deal_id}\n\n${deal.amount} USDC\n@${deal.seller_username} vs @${deal.buyer_username}\nBy: @${username}\nReason: ${reason}\n\n/disputes to view all`);
+    } catch (e) {}
   }
 });
 
 bot.command('evidence', async (ctx) => {
   const userId = ctx.from.id;
   const username = ctx.from.username;
-  const match = ctx.message.text.match(/^\/evidence\s+(TL-\w+)(?:\s+(.+))?$/i);
+  const match = ctx.message.text.match(/^\/evidence\s+(DP-\w+)(?:\s+(.+))?$/i);
 
-  if (!match) return ctx.reply('Usage: /evidence TL-XXXX your message');
+  if (!match) return ctx.reply('Usage: /evidence DP-XXXX your message');
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
@@ -446,8 +471,8 @@ bot.on('message:photo', async (ctx) => {
   const username = ctx.from.username;
   const caption = ctx.message.caption || '';
 
-  const match = caption.match(/^(TL-\w+)(?:\s+(.*))?$/i);
-  if (!match) return ctx.reply(`📸 Photo evidence: Send with caption TL-XXXX description`);
+  const match = caption.match(/^(DP-\w+)(?:\s+(.*))?$/i);
+  if (!match) return ctx.reply(`📸 Photo evidence: Send with caption DP-XXXX description`);
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
@@ -476,8 +501,8 @@ bot.on('message:photo', async (ctx) => {
 });
 
 bot.command('viewevidence', async (ctx) => {
-  const match = ctx.message.text.match(/^\/viewevidence\s+(TL-\w+)$/i);
-  if (!match) return ctx.reply('Usage: /viewevidence TL-XXXX');
+  const match = ctx.message.text.match(/^\/viewevidence\s+(DP-\w+)$/i);
+  if (!match) return ctx.reply('Usage: /viewevidence DP-XXXX');
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
@@ -503,8 +528,8 @@ bot.command('viewevidence', async (ctx) => {
 bot.command('canceldispute', async (ctx) => {
   const userId = ctx.from.id;
   const username = ctx.from.username;
-  const match = ctx.message.text.match(/^\/canceldispute\s+(TL-\w+)$/i);
-  if (!match) return ctx.reply('Usage: /canceldispute TL-XXXX');
+  const match = ctx.message.text.match(/^\/canceldispute\s+(DP-\w+)$/i);
+  if (!match) return ctx.reply('Usage: /canceldispute DP-XXXX');
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
@@ -522,8 +547,8 @@ bot.command('canceldispute', async (ctx) => {
 bot.command('review', async (ctx) => {
   const userId = ctx.from.id;
   const username = ctx.from.username;
-  const match = ctx.message.text.match(/^\/review\s+(TL-\w+)\s+([1-5])(?:\s+(.+))?$/i);
-  if (!match) return ctx.reply('Usage: /review TL-XXXX 5 comment');
+  const match = ctx.message.text.match(/^\/review\s+(DP-\w+)\s+([1-5])(?:\s+(.+))?$/i);
+  if (!match) return ctx.reply('Usage: /review DP-XXXX 5 comment');
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
@@ -585,7 +610,7 @@ bot.command('rep', async (ctx) => {
 // ============ ADMIN COMMANDS ============
 
 bot.command('adminhelp', async (ctx) => {
-  if (!isBotmaster(ctx.from.username)) return ctx.reply('Botmaster only.');
+  if (!isBotmaster(ctx.from.id)) return ctx.reply('Botmaster only.');
 
   await ctx.reply(`👑 BOTMASTER COMMANDS
 
@@ -596,28 +621,28 @@ MOD MANAGEMENT
 
 DISPUTES
 /disputes - All open disputes
-/assign TL-XXXX @mod
-/unassign TL-XXXX
-/viewevidence TL-XXXX
-/resolve TL-XXXX release|refund
+/assign DP-XXXX @mod
+/unassign DP-XXXX
+/viewevidence DP-XXXX
+/resolve DP-XXXX release|refund
 
 COMMUNICATION
-/msg TL-XXXX seller|buyer [msg]
-/broadcast TL-XXXX [msg]
+/msg DP-XXXX seller|buyer [msg]
+/broadcast DP-XXXX [msg]
 
 AUDIT
 /logs
-/logs TL-XXXX`);
+/logs DP-XXXX`);
 });
 
 bot.command('modhelp', async (ctx) => {
   const { isAdmin } = await isAnyAdmin(ctx);
   if (!isAdmin) return ctx.reply('Admin only.');
-  await ctx.reply(`🛡️ MOD COMMANDS\n\n/mydisputes\n/viewevidence TL-XXXX\n/msg TL-XXXX seller|buyer [msg]\n/resolve TL-XXXX release|refund`);
+  await ctx.reply(`🛡️ MOD COMMANDS\n\n/mydisputes\n/viewevidence DP-XXXX\n/msg DP-XXXX seller|buyer [msg]\n/resolve DP-XXXX release|refund`);
 });
 
 bot.command('addmod', async (ctx) => {
-  if (!isBotmaster(ctx.from.username)) return ctx.reply('Botmaster only.');
+  if (!isBotmaster(ctx.from.id)) return ctx.reply('Botmaster only.');
 
   const match = ctx.message.text.match(/^\/addmod\s+@(\w+)$/i);
   if (!match) return ctx.reply('Usage: /addmod @username');
@@ -653,7 +678,7 @@ bot.command('addmod', async (ctx) => {
 });
 
 bot.command('removemod', async (ctx) => {
-  if (!isBotmaster(ctx.from.username)) return ctx.reply('Botmaster only.');
+  if (!isBotmaster(ctx.from.id)) return ctx.reply('Botmaster only.');
 
   const match = ctx.message.text.match(/^\/removemod\s+@(\w+)$/i);
   if (!match) return ctx.reply('Usage: /removemod @username');
@@ -666,7 +691,7 @@ bot.command('removemod', async (ctx) => {
 });
 
 bot.command('mods', async (ctx) => {
-  if (!isBotmaster(ctx.from.username)) return ctx.reply('Botmaster only.');
+  if (!isBotmaster(ctx.from.id)) return ctx.reply('Botmaster only.');
 
   const { data, error } = await supabase.from('moderators').select('*').eq('is_active', true);
   if (error) return ctx.reply(`Error: ${error.message}`);
@@ -718,10 +743,10 @@ bot.command('mydisputes', async (ctx) => {
 });
 
 bot.command('assign', async (ctx) => {
-  if (!isBotmaster(ctx.from.username)) return ctx.reply('Botmaster only.');
+  if (!isBotmaster(ctx.from.id)) return ctx.reply('Botmaster only.');
 
-  const match = ctx.message.text.match(/^\/assign\s+(TL-\w+)\s+@(\w+)$/i);
-  if (!match) return ctx.reply('Usage: /assign TL-XXXX @moderator');
+  const match = ctx.message.text.match(/^\/assign\s+(DP-\w+)\s+@(\w+)$/i);
+  if (!match) return ctx.reply('Usage: /assign DP-XXXX @moderator');
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
@@ -751,10 +776,10 @@ bot.command('assign', async (ctx) => {
 });
 
 bot.command('unassign', async (ctx) => {
-  if (!isBotmaster(ctx.from.username)) return ctx.reply('Botmaster only.');
+  if (!isBotmaster(ctx.from.id)) return ctx.reply('Botmaster only.');
 
-  const match = ctx.message.text.match(/^\/unassign\s+(TL-\w+)$/i);
-  if (!match) return ctx.reply('Usage: /unassign TL-XXXX');
+  const match = ctx.message.text.match(/^\/unassign\s+(DP-\w+)$/i);
+  if (!match) return ctx.reply('Usage: /unassign DP-XXXX');
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
@@ -772,8 +797,8 @@ bot.command('msg', async (ctx) => {
   const { isAdmin, role } = await isAnyAdmin(ctx);
   if (!isAdmin) return ctx.reply('Admin only.');
 
-  const match = ctx.message.text.match(/^\/msg\s+(TL-\w+)\s+(seller|buyer)\s+(.+)$/i);
-  if (!match) return ctx.reply('Usage: /msg TL-XXXX seller|buyer message');
+  const match = ctx.message.text.match(/^\/msg\s+(DP-\w+)\s+(seller|buyer)\s+(.+)$/i);
+  if (!match) return ctx.reply('Usage: /msg DP-XXXX seller|buyer message');
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
@@ -804,8 +829,8 @@ bot.command('broadcast', async (ctx) => {
   const { isAdmin } = await isAnyAdmin(ctx);
   if (!isAdmin) return ctx.reply('Admin only.');
 
-  const match = ctx.message.text.match(/^\/broadcast\s+(TL-\w+)\s+(.+)$/i);
-  if (!match) return ctx.reply('Usage: /broadcast TL-XXXX message');
+  const match = ctx.message.text.match(/^\/broadcast\s+(DP-\w+)\s+(.+)$/i);
+  if (!match) return ctx.reply('Usage: /broadcast DP-XXXX message');
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
@@ -819,8 +844,8 @@ bot.command('resolve', async (ctx) => {
   const { isAdmin, role } = await isAnyAdmin(ctx);
   if (!isAdmin) return ctx.reply('Admin only.');
 
-  const match = ctx.message.text.match(/^\/resolve\s+(TL-\w+)\s+(release|refund)$/i);
-  if (!match) return ctx.reply('Usage: /resolve TL-XXXX release|refund');
+  const match = ctx.message.text.match(/^\/resolve\s+(DP-\w+)\s+(release|refund)$/i);
+  if (!match) return ctx.reply('Usage: /resolve DP-XXXX release|refund');
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
@@ -880,9 +905,9 @@ bot.command('resolve', async (ctx) => {
 });
 
 bot.command('logs', async (ctx) => {
-  if (!isBotmaster(ctx.from.username)) return ctx.reply('Botmaster only.');
+  if (!isBotmaster(ctx.from.id)) return ctx.reply('Botmaster only.');
 
-  const match = ctx.message.text.match(/^\/logs(?:@\w+)?(?:\s+(TL-\w+))?$/i);
+  const match = ctx.message.text.match(/^\/logs(?:@\w+)?(?:\s+(DP-\w+))?$/i);
   const dealId = match?.[1];
 
   let query = supabase.from('admin_logs').select('*').order('created_at', { ascending: false }).limit(15);
@@ -903,9 +928,13 @@ bot.command('logs', async (ctx) => {
   await ctx.reply(msg);
 });
 
-// Catch-all
+// Catch-all (rate limited to prevent spam/DoS)
 bot.on('message:text', async (ctx) => {
-  if (!ctx.message.text.startsWith('/')) await ctx.reply('/help');
+  if (!ctx.message.text.startsWith('/')) {
+    if (!isRateLimited(ctx.from.id, 5000)) {
+      await ctx.reply('Unknown command. Try /help');
+    }
+  }
 });
 
 // Poll for funded deals
@@ -984,6 +1013,6 @@ bot.catch((err) => {
 bot.start();
 console.log('DealPact v3.2 running!');
 console.log('Contract:', CONTRACT_ADDRESS);
-console.log('Botmasters:', BOTMASTER_USERNAMES.join(', '));
+console.log('Botmaster IDs:', BOTMASTER_IDS.join(', '));
 setInterval(pollDeals, 30000);
 pollDeals();

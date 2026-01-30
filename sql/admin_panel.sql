@@ -1,4 +1,4 @@
--- TrustLock Admin Panel Database Schema
+-- DealPact Admin Panel Database Schema
 -- Run this in Supabase SQL Editor
 
 -- 1. Moderators table
@@ -64,7 +64,18 @@ ALTER TABLE public.moderators ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.evidence ENABLE ROW LEVEL SECURITY;
 
--- Policies (allow all for service role - bot uses service key)
-CREATE POLICY "moderators_all" ON public.moderators FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "admin_logs_all" ON public.admin_logs FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "evidence_all" ON public.evidence FOR ALL USING (true) WITH CHECK (true);
+-- Drop old permissive policies
+DROP POLICY IF EXISTS "moderators_all" ON public.moderators;
+DROP POLICY IF EXISTS "admin_logs_all" ON public.admin_logs;
+DROP POLICY IF EXISTS "evidence_all" ON public.evidence;
+
+-- Restrictive policies: only service_role (used by the bot) can access these tables.
+-- The anon/authenticated keys CANNOT read or write admin tables.
+CREATE POLICY "moderators_service_only" ON public.moderators
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+
+CREATE POLICY "admin_logs_service_only" ON public.admin_logs
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+
+CREATE POLICY "evidence_service_only" ON public.evidence
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');

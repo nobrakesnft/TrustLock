@@ -9,7 +9,7 @@ A Telegram bot that lets you get paid in crypto without getting scammed. Funds a
 ## Project Structure
 
 ```
-TrustLock/
+DealPact/
 ├── docs/
 │   └── PRD.md          # Product requirements (your blueprint)
 ├── bot/

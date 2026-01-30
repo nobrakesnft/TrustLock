@@ -1,10 +1,10 @@
 {
   "_format": "hh-sol-cache-2",
   "files": {
-    "C:\\Users\\HP OWNER\\TrustLock\\contracts\\contracts\\TrustLockEscrow.sol": {
-      "lastModificationDate": 1769298293848,
-      "contentHash": "5d16f98ba2f3b85d2adc228b7d3d7a92",
-      "sourceName": "contracts/TrustLockEscrow.sol",
+    "C:\\Users\\HP OWNER\\TrustLock\\contracts\\contracts\\DealPactEscrow.sol": {
+      "lastModificationDate": 1769811964196,
+      "contentHash": "b13877afade3efdc5e1380cfb07a1cca",
+      "sourceName": "contracts/DealPactEscrow.sol",
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
@@ -31,13 +31,14 @@
       },
       "imports": [
         "@openzeppelin/contracts/token/ERC20/IERC20.sol",
-        "@openzeppelin/contracts/utils/ReentrancyGuard.sol"
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+        "@openzeppelin/contracts/utils/Pausable.sol"
       ],
       "versionPragmas": [
         "^0.8.20"
       ],
       "artifacts": [
-        "TrustLockEscrow"
+        "DealPactEscrow"
       ]
     },
     "C:\\Users\\HP OWNER\\TrustLock\\contracts\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\IERC20.sol": {
@@ -110,6 +111,80 @@
       ],
       "artifacts": [
         "ReentrancyGuard"
+      ]
+    },
+    "C:\\Users\\HP OWNER\\TrustLock\\contracts\\node_modules\\@openzeppelin\\contracts\\utils\\Pausable.sol": {
+      "lastModificationDate": 1769297314922,
+      "contentHash": "0d47b53e10b1985efbb396f937626279",
+      "sourceName": "@openzeppelin/contracts/utils/Pausable.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../utils/Context.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "Pausable"
+      ]
+    },
+    "C:\\Users\\HP OWNER\\TrustLock\\contracts\\node_modules\\@openzeppelin\\contracts\\utils\\Context.sol": {
+      "lastModificationDate": 1769297314453,
+      "contentHash": "67bfbc07588eb8683b3fd8f6f909563e",
+      "sourceName": "@openzeppelin/contracts/utils/Context.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "Context"
       ]
     }
   }
