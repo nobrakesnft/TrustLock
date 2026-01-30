@@ -524,7 +524,11 @@
         async function connectWallet() {
             if (!window.ethereum) {
                 if (isMobile()) {
+                    connectMsg('Opening MetaMask...', 'info');
                     openWallet('metamask');
+                    setTimeout(() => {
+                        connectMsg('Didn\'t open? Open this page from your wallet app\'s built-in browser. Copy the URL and paste it there.', 'warning');
+                    }, 3000);
                 } else {
                     connectMsg('No wallet detected. Install MetaMask or Rabby.', 'warning');
                 }
