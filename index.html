@@ -266,18 +266,8 @@
                 <!-- Connect Wallet -->
                 <div id="buy-connect" class="card">
                     <div class="card-title">Connect Wallet</div>
-                    <button class="btn btn-primary" id="connect-btn" onclick="showWalletOptions()">Connect Wallet</button>
-                    <div id="wallet-list" class="wallet-options hidden">
-                        <button class="wallet-btn" onclick="connectWallet('metamask')">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask">
-                            MetaMask
-                        </button>
-                        <button class="wallet-btn" onclick="connectWallet('rabby')">
-                            <img src="https://raw.githubusercontent.com/nicenathapong/wallet-icon/main/icons/rabby.png" alt="Rabby">
-                            Rabby Wallet
-                        </button>
-                    </div>
-                    <div id="connect-alert" style="margin-top:12px;"></div>
+                    <button class="btn btn-primary" id="connect-btn" onclick="connectWallet()">Connect Wallet</button>
+                    <div id="connect-alert"></div>
                 </div>
 
                 <!-- Actions -->
@@ -527,15 +517,13 @@
             }
         }
 
-        function showWalletOptions() {
-            hide('connect-btn');
-            show('wallet-list');
-        }
-
-        async function connectWallet(walletType) {
-            // On mobile or no ethereum, deep-link to wallet app
+        async function connectWallet() {
             if (!window.ethereum) {
-                openWallet(walletType);
+                if (isMobile()) {
+                    openWallet('metamask');
+                } else {
+                    $('connect-alert').innerHTML = '<div class="alert alert-warning">No wallet detected. Install MetaMask or Rabby.</div>';
+                }
                 return;
             }
 
@@ -683,7 +671,6 @@
             hide('buy-actions');
             show('buy-connect');
             show('connect-btn');
-            hide('wallet-list');
             $('action-alert').innerHTML = '';
             $('connect-alert').innerHTML = '';
             $('deal-search').value = '';
