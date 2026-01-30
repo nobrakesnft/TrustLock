@@ -517,22 +517,32 @@
             }
         }
 
+        function connectMsg(msg, type) {
+            $('connect-alert').innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+        }
+
         async function connectWallet() {
             if (!window.ethereum) {
                 if (isMobile()) {
                     openWallet('metamask');
                 } else {
-                    $('connect-alert').innerHTML = '<div class="alert alert-warning">No wallet detected. Install MetaMask or Rabby.</div>';
+                    connectMsg('No wallet detected. Install MetaMask or Rabby.', 'warning');
                 }
                 return;
             }
+
+            $('connect-btn').disabled = true;
+            $('connect-btn').textContent = 'Connecting...';
+            connectMsg('Approve the connection in your wallet...', 'info');
 
             try {
                 let provider = new ethers.providers.Web3Provider(window.ethereum);
                 await provider.send("eth_requestAccounts", []);
 
+                connectMsg('Checking network...', 'info');
                 const network = await provider.getNetwork();
                 if (network.chainId !== CONFIG.CHAIN_ID) {
+                    connectMsg('Switching to Base Sepolia...', 'info');
                     try {
                         await window.ethereum.request({
                             method: 'wallet_switchEthereumChain',
@@ -548,6 +558,11 @@
                                     rpcUrls: [CONFIG.RPC], blockExplorerUrls: [CONFIG.EXPLORER]
                                 }]
                             });
+                        } else {
+                            connectMsg('Please switch to Base Sepolia network in your wallet.', 'warning');
+                            $('connect-btn').disabled = false;
+                            $('connect-btn').textContent = 'Connect Wallet';
+                            return;
                         }
                     }
                     provider = new ethers.providers.Web3Provider(window.ethereum);
@@ -557,10 +572,13 @@
                 state.address = await state.signer.getAddress();
 
                 if (state.address.toLowerCase() !== state.deal.buyer.toLowerCase()) {
-                    showAlert(`Wrong wallet! Need: ${short(state.deal.buyer)}`, 'error');
+                    connectMsg(`Wrong wallet connected. This deal requires: ${short(state.deal.buyer)}. Switch wallet and try again.`, 'error');
+                    $('connect-btn').disabled = false;
+                    $('connect-btn').textContent = 'Connect Wallet';
                     return;
                 }
 
+                connectMsg('Connected! Loading deal actions...', 'success');
                 $('wallet-info').textContent = `Connected: ${short(state.address)}`;
                 hide('buy-connect');
                 show('buy-actions');
@@ -590,7 +608,13 @@
 
             } catch (e) {
                 console.error(e);
-                showAlert('Connection failed: ' + e.message, 'error');
+                if (e.code === 4001) {
+                    connectMsg('Connection rejected. Click Connect Wallet to try again.', 'warning');
+                } else {
+                    connectMsg('Connection failed. Unlock your wallet and try again.', 'error');
+                }
+                $('connect-btn').disabled = false;
+                $('connect-btn').textContent = 'Connect Wallet';
             }
         }
 
