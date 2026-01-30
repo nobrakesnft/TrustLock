@@ -264,13 +264,13 @@
 
         <!-- Tabs -->
         <div id="tabs-section" class="tabs">
-            <button class="tab active" data-tab="buy">BUY</button>
-            <button class="tab" data-tab="sell">SELL</button>
+            <button class="tab active" data-tab="sell">SELL</button>
+            <button class="tab" data-tab="buy">BUY</button>
             <button class="tab" data-tab="status">STATUS</button>
         </div>
 
         <!-- BUY TAB -->
-        <div id="tab-buy" class="tab-content active">
+        <div id="tab-buy" class="tab-content">
             <div id="buy-intro" class="card">
                 <div class="card-title">How to Buy</div>
                 <div class="steps">
@@ -295,7 +295,7 @@
         </div>
 
         <!-- SELL TAB -->
-        <div id="tab-sell" class="tab-content">
+        <div id="tab-sell" class="tab-content active">
             <!-- Create Deal CTA -->
             <div class="card" style="text-align:center;background:linear-gradient(135deg,rgba(0,217,255,0.1),rgba(0,255,136,0.1));border-color:rgba(0,217,255,0.3);">
                 <div style="font-size:2.5rem;margin-bottom:10px;">💰</div>
@@ -341,10 +341,6 @@
                     • Dispute handling & evidence<br>
                     • Build your reputation
                 </div>
-                <button class="telegram-btn" onclick="window.open('https://t.me/trustlock1bot','_blank')" style="margin-top:16px;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295l.213-3.053 5.56-5.023c.242-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.941z"/></svg>
-                    Open Bot Directly
-                </button>
             </div>
         </div>
 
@@ -707,8 +703,8 @@
             $('connect-alert').innerHTML = '';
             // Restore tabs
             show('tabs-section');
-            document.querySelector('[data-tab="buy"]').classList.add('active');
-            $('tab-buy').classList.add('active');
+            document.querySelector('[data-tab="sell"]').classList.add('active');
+            $('tab-sell').classList.add('active');
             $('deal-search').value = '';
             state = { deal: null, signer: null, address: null };
         }
