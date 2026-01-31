@@ -179,6 +179,7 @@ DEALS
 DISPUTES
 /dispute DP-XXXX reason
 /evidence DP-XXXX msg
+📸 Photo: send image with caption DP-XXXX desc
 /viewevidence DP-XXXX
 /canceldispute DP-XXXX
 
