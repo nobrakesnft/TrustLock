@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DealPact - Secure Escrow Payment</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js" integrity="sha384-Htz1SE4Sl5aitpvFgr2j0sfsGUIuSXI6t8hEyrlQ93zflEF3a29bH2AvkUROUw7J" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU" crossorigin="anonymous"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -333,47 +332,42 @@
             text-transform: uppercase;
         }
 
-        /* QR Code */
-        .qr-section {
-            text-align: center;
-            padding: 20px;
-            background: rgba(255,255,255,0.02);
-            border-radius: 12px;
-            margin-top: 16px;
-        }
-        .qr-section p {
-            font-size: 0.8rem;
-            color: #888;
-            margin-bottom: 12px;
-        }
-        #qrcode {
-            display: inline-block;
-            padding: 12px;
-            background: #fff;
-            border-radius: 12px;
-        }
-        #qrcode img {
-            display: block;
-        }
-        .qr-hint {
-            font-size: 0.7rem;
-            color: #666;
-            margin-top: 12px;
-        }
 
-        /* Mobile wallet buttons */
-        .wallet-options {
+        /* Wallet selector modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: #1a1a2e;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 24px;
+            width: 90%;
+            max-width: 380px;
+        }
+        .modal-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .wallet-list {
             display: flex;
             flex-direction: column;
             gap: 10px;
-            margin-top: 16px;
         }
         .wallet-btn {
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 10px;
-            padding: 14px;
+            gap: 12px;
+            padding: 14px 16px;
             border-radius: 12px;
             border: 1px solid rgba(255,255,255,0.1);
             background: rgba(255,255,255,0.03);
@@ -387,9 +381,39 @@
             border-color: #00d9ff;
         }
         .wallet-btn img {
-            width: 24px;
-            height: 24px;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
         }
+        .wallet-btn .wallet-name { font-weight: 500; }
+        .wallet-btn .wallet-tag {
+            margin-left: auto;
+            font-size: 0.7rem;
+            color: #00ff88;
+            background: rgba(0,255,136,0.1);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+        .modal-cancel {
+            width: 100%;
+            padding: 12px;
+            margin-top: 12px;
+            border-radius: 12px;
+            border: none;
+            background: rgba(255,255,255,0.05);
+            color: #888;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        .modal-cancel:hover { background: rgba(255,255,255,0.1); }
+        .no-wallets {
+            text-align: center;
+            color: #888;
+            font-size: 0.85rem;
+            padding: 16px 0;
+        }
+        .no-wallets a { color: #00d9ff; text-decoration: none; }
+        .no-wallets a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -403,16 +427,16 @@
         <!-- Social Proof -->
         <div class="social-proof">
             <div class="proof-item">
-                <div class="proof-value" id="stat-deals">--</div>
-                <div class="proof-label">Deals Done</div>
+                <div class="proof-value">1.5%</div>
+                <div class="proof-label">Escrow Fee</div>
             </div>
             <div class="proof-item">
-                <div class="proof-value" id="stat-volume">--</div>
-                <div class="proof-label">USDC Volume</div>
+                <div class="proof-value">&lt; 30s</div>
+                <div class="proof-label">Response Time</div>
             </div>
             <div class="proof-item">
-                <div class="proof-value">0%</div>
-                <div class="proof-label">Scam Rate</div>
+                <div class="proof-value">99.9%</div>
+                <div class="proof-label">Uptime</div>
             </div>
         </div>
 
@@ -468,27 +492,17 @@
 
                 <!-- Wallet Connect -->
                 <div id="connect-section">
-                    <button class="btn btn-primary" id="connect-btn" onclick="connectWallet()">
+                    <button class="btn btn-primary" id="connect-btn" onclick="showWalletModal()">
                         Connect Wallet
                     </button>
+                </div>
 
-                    <!-- Mobile wallet options (shown when no wallet detected) -->
-                    <div id="mobile-options" class="wallet-options hidden">
-                        <button class="wallet-btn" onclick="openInMetaMask()">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask">
-                            Open in MetaMask
-                        </button>
-                        <button class="wallet-btn" onclick="openInRabby()">
-                            <img src="https://rabby.io/assets/images/logo.svg" alt="Rabby">
-                            Open in Rabby Wallet
-                        </button>
-                    </div>
-
-                    <!-- QR Code for desktop users to scan with mobile -->
-                    <div class="qr-section" id="qr-section">
-                        <p>Or scan with your mobile wallet:</p>
-                        <div id="qrcode"></div>
-                        <div class="qr-hint">Scan to open in MetaMask or Rabby Wallet</div>
+                <!-- Wallet Selector Modal -->
+                <div class="modal-overlay" id="wallet-modal">
+                    <div class="modal">
+                        <div class="modal-title">Connect Wallet</div>
+                        <div class="wallet-list" id="wallet-list"></div>
+                        <button class="modal-cancel" onclick="hideWalletModal()">Cancel</button>
                     </div>
                 </div>
 
@@ -637,22 +651,10 @@
                 const actionParam = params.get('action');
                 state.action = actionParam === 'release' ? 'release' : 'deposit';
 
+                // Check if this is a bot-initiated release
                 if (state.action === 'release') {
-                    // For release, deal must be Funded (status 1)
                     if (status !== 1) {
                         showAlert('search-alert', `Cannot release. Deal status is "${statuses[status]}".`, 'warning');
-                        setLoading('search-btn', false);
-                        return;
-                    }
-                } else {
-                    // No action param — homepage search only
-                    if (status === 1) {
-                        showAlert('search-alert', 'Funds locked. After delivery, go to the bot and type <strong>/release ' + input + '</strong> to get your release link.', 'info');
-                        setLoading('search-btn', false);
-                        return;
-                    }
-                    if (status !== 0) {
-                        showAlert('search-alert', `Deal is "${statuses[status]}". No action needed.`, 'warning');
                         setLoading('search-btn', false);
                         return;
                     }
@@ -664,7 +666,8 @@
                     chainId: chainId.toString(),
                     seller: deal[1],
                     buyer: deal[2],
-                    amount: deal[3]
+                    amount: deal[3],
+                    status: status
                 };
 
                 // Update UI
@@ -673,21 +676,46 @@
                 $('disp-seller').textContent = short(deal[1]);
                 $('disp-buyer').textContent = short(deal[2]);
 
-                // Update UI for release vs deposit mode
-                if (state.action === 'release') {
-                    // Update status badge
-                    document.querySelector('.deal-status').textContent = 'Ready to Release';
-                    document.querySelector('.deal-status').style.background = 'rgba(0,255,136,0.2)';
-                    document.querySelector('.deal-status').style.color = '#00ff88';
-                    // Update step text
-                    $('step-2').querySelector('.step-text').textContent = 'Confirm';
-                    $('step-3').querySelector('.step-text').textContent = 'Release';
-                }
+                // Update status badge based on deal status
+                const statusBadge = document.querySelector('.deal-status');
+                const statusStyles = {
+                    0: { text: 'Awaiting Payment', bg: 'rgba(255,193,7,0.2)', color: '#ffc107' },
+                    1: { text: 'Funded', bg: 'rgba(0,217,255,0.2)', color: '#00d9ff' },
+                    2: { text: 'Completed', bg: 'rgba(0,255,136,0.2)', color: '#00ff88' },
+                    3: { text: 'Refunded', bg: 'rgba(255,71,87,0.2)', color: '#ff4757' },
+                    4: { text: 'Disputed', bg: 'rgba(255,193,7,0.2)', color: '#ffc107' },
+                    5: { text: 'Cancelled', bg: 'rgba(255,71,87,0.2)', color: '#ff4757' }
+                };
+                const style = statusStyles[status] || statusStyles[0];
+                statusBadge.textContent = style.text;
+                statusBadge.style.background = style.bg;
+                statusBadge.style.color = style.color;
 
                 // Show deal section
                 hide('search-section');
                 show('deal-section');
-                setStep(1);
+
+                // Handle what the user can do based on status
+                if (state.action === 'release' && status === 1) {
+                    // Bot-initiated release
+                    $('step-2').querySelector('.step-text').textContent = 'Confirm';
+                    $('step-3').querySelector('.step-text').textContent = 'Release';
+                    setStep(1);
+                } else if (status === 0) {
+                    // Pending — show deposit flow
+                    setStep(1);
+                } else {
+                    // Funded/Completed/Refunded/Disputed/Cancelled — view only
+                    hide('connect-section');
+                    const statusMessages = {
+                        1: 'Funds locked. After delivery, use <strong>/release ' + input + '</strong> in the bot to get your release link.',
+                        2: 'This deal is complete. Funds have been released to the seller.',
+                        3: 'This deal has been refunded to the buyer.',
+                        4: 'This deal is under dispute. Awaiting admin resolution.',
+                        5: 'This deal has been cancelled.'
+                    };
+                    showAlert('action-alert', statusMessages[status], status === 2 ? 'success' : 'info');
+                }
 
             } catch (e) {
                 console.error('Search error:', e);
@@ -707,38 +735,114 @@
             return window.location.href;
         }
 
-        // Open in MetaMask mobile browser
-        function openInMetaMask() {
+        // Detect available wallets
+        function getAvailableWallets() {
+            const wallets = [];
+            const seen = new Set();
             const url = getCurrentUrl();
-            const metamaskUrl = `https://metamask.app.link/dapp/${url.replace('https://', '')}`;
-            window.location.href = metamaskUrl;
-        }
 
-        // Open in Rabby Wallet
-        function openInRabby() {
-            const url = getCurrentUrl();
-            // Rabby uses a direct dApp link format
-            window.location.href = `https://rabby.io/dapp?url=${encodeURIComponent(url)}`;
-        }
+            const knownWallets = [
+                { flag: 'isMetaMask', name: 'MetaMask', icon: 'https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg' },
+                { flag: 'isRabby', name: 'Rabby', icon: 'https://rabby.io/assets/images/logo.svg' },
+                { flag: 'isCoinbaseWallet', name: 'Coinbase Wallet', icon: 'https://avatars.githubusercontent.com/u/18060234?s=200&v=4' },
+                { flag: 'isTrust', name: 'Trust Wallet', icon: 'https://trustwallet.com/assets/images/media/assets/trust_platform.svg' },
+                { flag: 'isOkxWallet', name: 'OKX Wallet', icon: 'https://static.okx.com/cdn/assets/imgs/226/EB771F0FEE8E5B02.png' },
+                { flag: 'isBraveWallet', name: 'Brave Wallet', icon: 'https://brave.com/static-assets/images/brave-logo-sans-text.svg' }
+            ];
 
-        // Show mobile wallet options
-        function showMobileOptions() {
-            hide('connect-btn');
-            show('mobile-options');
-            hide('qr-section');
-        }
-
-        // Connect Wallet
-        async function connectWallet() {
-            // Check if wallet is available
-            if (!window.ethereum) {
-                if (isMobile()) {
-                    // On mobile without ethereum - show deep link options
-                    showMobileOptions();
-                    return;
+            function addFromProvider(p) {
+                for (const w of knownWallets) {
+                    if (p[w.flag] && !seen.has(w.name)) {
+                        // Skip MetaMask flag if Rabby is pretending to be MetaMask
+                        if (w.flag === 'isMetaMask' && p.isRabby) continue;
+                        seen.add(w.name);
+                        wallets.push({ name: w.name, icon: w.icon, tag: 'Detected', provider: p });
+                    }
                 }
-                // Desktop without wallet - show QR prominently
-                showAlert('action-alert', 'No wallet detected. Scan the QR code below with your mobile wallet, or install MetaMask.', 'warning');
+            }
+
+            // Check providers array (multiple wallets installed)
+            if (window.ethereum?.providers?.length) {
+                for (const p of window.ethereum.providers) {
+                    addFromProvider(p);
+                }
+            }
+
+            // Check window.ethereum itself
+            if (window.ethereum) {
+                addFromProvider(window.ethereum);
+            }
+
+            // Check separate globals
+            const globals = [
+                { global: 'rabby', flag: 'isRabby' },
+                { global: 'okxwallet', flag: 'isOkxWallet' },
+                { global: 'trustwallet', flag: 'isTrust' },
+                { global: 'coinbaseWalletExtension', flag: 'isCoinbaseWallet' },
+                { global: 'braveEthereum', flag: 'isBraveWallet' }
+            ];
+            for (const g of globals) {
+                if (window[g.global] && !seen.has(knownWallets.find(w => w.flag === g.flag)?.name)) {
+                    const w = knownWallets.find(w => w.flag === g.flag);
+                    if (w) {
+                        seen.add(w.name);
+                        wallets.push({ name: w.name, icon: w.icon, tag: 'Detected', provider: window[g.global] });
+                    }
+                }
+            }
+
+            // Generic fallback
+            if (window.ethereum && wallets.length === 0) {
+                wallets.push({ name: 'Browser Wallet', icon: '', tag: 'Detected', provider: window.ethereum });
+            }
+
+            // Deep link options for mobile without injected wallet
+            if (wallets.length === 0 && isMobile()) {
+                wallets.push({ name: 'MetaMask', icon: 'https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg', tag: 'Open App', deepLink: `https://metamask.app.link/dapp/${url.replace('https://', '')}` });
+                wallets.push({ name: 'Coinbase Wallet', icon: 'https://avatars.githubusercontent.com/u/18060234?s=200&v=4', tag: 'Open App', deepLink: `https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(url)}` });
+            }
+
+            return wallets;
+        }
+
+        function showWalletModal() {
+            const wallets = getAvailableWallets();
+            const list = $('wallet-list');
+            list.innerHTML = '';
+
+            if (wallets.length === 0) {
+                list.innerHTML = '<div class="no-wallets">No wallets detected.<br><a href="https://metamask.io/download/" target="_blank">Install MetaMask</a></div>';
+            } else {
+                for (const w of wallets) {
+                    const btn = document.createElement('button');
+                    btn.className = 'wallet-btn';
+                    btn.innerHTML = `${w.icon ? `<img src="${w.icon}" alt="${w.name}">` : ''}<span class="wallet-name">${w.name}</span><span class="wallet-tag">${w.tag}</span>`;
+                    if (w.deepLink) {
+                        btn.onclick = () => { window.location.href = w.deepLink; };
+                    } else {
+                        btn.onclick = () => { hideWalletModal(); connectWallet(w.provider); };
+                    }
+                    list.appendChild(btn);
+                }
+            }
+
+            $('wallet-modal').classList.add('active');
+        }
+
+        function hideWalletModal() {
+            $('wallet-modal').classList.remove('active');
+        }
+
+        // Close modal on overlay click
+        $('wallet-modal')?.addEventListener('click', (e) => {
+            if (e.target === $('wallet-modal')) hideWalletModal();
+        });
+
+        // Connect Wallet with selected provider
+        async function connectWallet(selectedProvider) {
+            const ethProvider = selectedProvider || window.ethereum;
+            if (!ethProvider) {
+                showAlert('action-alert', 'No wallet detected.', 'warning');
                 return;
             }
 
@@ -746,7 +850,7 @@
             clearAlert('action-alert');
 
             try {
-                let provider = new ethers.providers.Web3Provider(window.ethereum);
+                let provider = new ethers.providers.Web3Provider(ethProvider);
                 await provider.send("eth_requestAccounts", []);
 
                 // Check network
@@ -754,13 +858,13 @@
                 if (network.chainId !== CONFIG.CHAIN_ID) {
                     showAlert('action-alert', 'Switching to Base Sepolia...', 'info');
                     try {
-                        await window.ethereum.request({
+                        await ethProvider.request({
                             method: 'wallet_switchEthereumChain',
                             params: [{ chainId: '0x14A34' }]
                         });
                     } catch (switchErr) {
                         if (switchErr.code === 4902) {
-                            await window.ethereum.request({
+                            await ethProvider.request({
                                 method: 'wallet_addEthereumChain',
                                 params: [{
                                     chainId: '0x14A34',
@@ -772,7 +876,7 @@
                             });
                         }
                     }
-                    provider = new ethers.providers.Web3Provider(window.ethereum);
+                    provider = new ethers.providers.Web3Provider(ethProvider);
                 }
 
                 state.signer = provider.getSigner();
@@ -980,52 +1084,7 @@
             document.querySelector('.balance-card').style.display = 'block';
         }
 
-        // Generate QR code for current page
-        function generateQRCode() {
-            const qrContainer = $('qrcode');
-            if (!qrContainer) return;
 
-            // Clear existing
-            qrContainer.innerHTML = '';
-
-            // Generate QR for MetaMask deep link
-            const currentUrl = window.location.href;
-            const metamaskUrl = `https://metamask.app.link/dapp/${currentUrl.replace('https://', '')}`;
-
-            try {
-                new QRCode(qrContainer, {
-                    text: metamaskUrl,
-                    width: 150,
-                    height: 150,
-                    colorDark: '#000000',
-                    colorLight: '#ffffff',
-                    correctLevel: QRCode.CorrectLevel.M
-                });
-            } catch (e) {
-                console.log('QR generation failed:', e);
-            }
-        }
-
-        // Load platform stats from contract
-        async function loadStats() {
-            try {
-                const provider = new ethers.providers.JsonRpcProvider(CONFIG.RPC);
-                const contract = new ethers.Contract(CONFIG.CONTRACT, [
-                    "function dealCounter() view returns (uint256)"
-                ], provider);
-
-                const dealCount = await contract.dealCounter();
-                $('stat-deals').textContent = dealCount.toString();
-
-                // Estimate volume (deals * avg 50 USDC for demo)
-                const estVolume = parseInt(dealCount) * 50;
-                $('stat-volume').textContent = estVolume > 1000 ? `${(estVolume/1000).toFixed(1)}K` : estVolume;
-            } catch (e) {
-                console.log('Stats load failed:', e);
-                $('stat-deals').textContent = '3+';
-                $('stat-volume').textContent = '150+';
-            }
-        }
 
         // Detect if we're in a wallet browser (MetaMask, Rabby, etc.)
         function isWalletBrowser() {
@@ -1054,22 +1113,12 @@
             if (!$('deal-section').classList.contains('hidden') &&
                 !$('connect-section').classList.contains('hidden')) {
                 console.log('Wallet browser detected, auto-connecting...');
-                connectWallet();
+                connectWallet(window.ethereum);
             }
         }
 
         // Auto-load from URL
         window.onload = async function() {
-            // Load stats
-            loadStats();
-
-            // Generate QR code (only if not in wallet browser on mobile)
-            if (!isMobile() || !window.ethereum) {
-                generateQRCode();
-            } else {
-                // Hide QR section on mobile wallet browsers
-                hide('qr-section');
-            }
 
             // Check for deal in URL
             const params = new URLSearchParams(window.location.search);
