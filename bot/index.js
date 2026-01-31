@@ -128,6 +128,14 @@ async function notifyParties(deal, message) {
   } catch (e) {}
 }
 
+// Timeout wrapper for tx.wait() — prevents bot from hanging if RPC stalls
+async function waitWithTimeout(tx, ms = 60000) {
+  return Promise.race([
+    tx.wait(),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Transaction timed out')), ms))
+  ]);
+}
+
 // Get on-chain deal status
 async function getOnChainStatus(dealId) {
   try {
@@ -318,7 +326,7 @@ bot.command('fund', async (ctx) => {
   try {
     const tx = await escrowContract.createDeal(deal.deal_id, sellerUser.wallet_address, buyerUser.wallet_address, BigInt(Math.floor(deal.amount * 1e6)));
     await ctx.reply(`Tx: https://sepolia.basescan.org/tx/${tx.hash}`);
-    await tx.wait();
+    await waitWithTimeout(tx);
     await supabase.from('deals').update({ contract_deal_id: deal.deal_id, tx_hash: tx.hash }).ilike('deal_id', deal.deal_id);
     await ctx.reply(`✅ Ready!\n\n👇 TAP TO DEPOSIT:\n${FRONTEND_URL}?deal=${deal.deal_id}`);
   } catch (e) {
@@ -392,7 +400,7 @@ bot.command('dispute', async (ctx) => {
       if (onChainStatus === 1) { // Funded
         await ctx.reply('Marking dispute on-chain...');
         const tx = await escrowContract.dispute(chainId);
-        await tx.wait();
+        await waitWithTimeout(tx);
         await ctx.reply('✅ On-chain dispute recorded.');
       }
     }
@@ -507,6 +515,14 @@ bot.command('viewevidence', async (ctx) => {
 
   const { deal } = await getDeal(match[1]);
   if (!deal) return ctx.reply('Deal not found.');
+
+  const userId = ctx.from.id;
+  const username = ctx.from.username;
+  const isSeller = deal.seller_telegram_id === userId;
+  const isBuyer = deal.buyer_username.toLowerCase() === username?.toLowerCase();
+  const { isAdmin, role } = await isAnyAdmin(ctx);
+  if (!isSeller && !isBuyer && !isAdmin) return ctx.reply('Not your deal.');
+  if (role === 'moderator' && deal.assigned_to_telegram_id !== userId) return ctx.reply('Only assigned disputes.');
 
   const { data: evidence, error } = await supabase.from('evidence').select('*').ilike('deal_id', deal.deal_id).order('created_at', { ascending: true });
 
@@ -872,7 +888,7 @@ bot.command('resolve', async (ctx) => {
         tx = await escrowContract.refund(onChain.chainId);
       }
       await ctx.reply(`Tx: https://sepolia.basescan.org/tx/${tx.hash}`);
-      await tx.wait();
+      await waitWithTimeout(tx);
       await ctx.reply('✅ On-chain resolved.');
     } catch (e) {
       await ctx.reply(`On-chain error: ${e.shortMessage || e.message}\n\nUpdating database anyway...`);
@@ -1014,6 +1030,5 @@ bot.catch((err) => {
 bot.start();
 console.log('DealPact v3.2 running!');
 console.log('Contract:', CONTRACT_ADDRESS);
-console.log('Botmaster IDs:', BOTMASTER_IDS.join(', '));
 setInterval(pollDeals, 30000);
 pollDeals();

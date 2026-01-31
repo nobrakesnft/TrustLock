@@ -557,9 +557,11 @@
         // ABIs
         const ESCROW_ABI = [
             "function deposit(uint256 _dealId) external",
-            "function release(uint256 _dealId) external",
             "function getDealByExternalId(string) view returns (tuple(string,address,address,uint256,uint8,uint256,uint256))",
             "function externalIdToDealId(string) view returns (uint256)"
+        ];
+        const RELEASE_ABI = [
+            "function release(uint256 _dealId) external"
         ];
         const ERC20_ABI = [
             "function approve(address,uint256) returns (bool)",
@@ -643,9 +645,14 @@
                         return;
                     }
                 } else {
-                    // For deposit, deal must be Pending (status 0)
+                    // No action param — homepage search only
+                    if (status === 1) {
+                        showAlert('search-alert', 'Funds locked. After delivery, go to the bot and type <strong>/release ' + input + '</strong> to get your release link.', 'info');
+                        setLoading('search-btn', false);
+                        return;
+                    }
                     if (status !== 0) {
-                        showAlert('search-alert', `Deal is already "${statuses[status]}". Cannot deposit.`, 'warning');
+                        showAlert('search-alert', `Deal is "${statuses[status]}". No action needed.`, 'warning');
                         setLoading('search-btn', false);
                         return;
                     }
@@ -923,7 +930,7 @@
             showAlert('action-alert', 'Confirm release in your wallet...', 'info');
 
             try {
-                const escrow = new ethers.Contract(CONFIG.CONTRACT, ESCROW_ABI, state.signer);
+                const escrow = new ethers.Contract(CONFIG.CONTRACT, RELEASE_ABI, state.signer);
                 const tx = await escrow.release(state.deal.chainId);
 
                 showAlert('action-alert', 'Processing release...', 'info');

@@ -115,6 +115,7 @@ contract DealPactEscrow is ReentrancyGuard, Pausable {
     // Buyer releases funds to seller
     function release(uint256 _dealId) external nonReentrant {
         Deal storage deal = deals[_dealId];
+        require(deal.buyer != address(0), "Deal not found");
         require(msg.sender == deal.buyer, "Only buyer can release");
         require(deal.status == DealStatus.Funded, "Deal not funded");
 
