@@ -206,10 +206,18 @@ bot.command('wallet', async (ctx) => {
     return ctx.reply(user?.wallet_address ? `Your wallet: ${user.wallet_address}` : 'Usage: /wallet 0xYourAddress');
   }
 
+  const walletAddress = match[1].toLowerCase();
+
+  // Check if wallet is already registered to another user
+  const { data: existing } = await supabase.from('users').select('telegram_id').eq('wallet_address', walletAddress).single();
+  if (existing && existing.telegram_id !== userId) {
+    return ctx.reply('This wallet is already registered to another user.');
+  }
+
   const { error } = await supabase.from('users').upsert({
     telegram_id: userId,
     username: username,
-    wallet_address: match[1].toLowerCase()
+    wallet_address: walletAddress
   }, { onConflict: 'telegram_id' });
 
   await ctx.reply(error ? `Failed: ${error.message}` : `✅ Wallet registered: ${match[1]}`);
