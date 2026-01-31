@@ -366,7 +366,8 @@ bot.command('cancel', async (ctx) => {
   const isSeller = deal.seller_telegram_id === userId;
   const isBuyer = deal.buyer_username.toLowerCase() === username?.toLowerCase();
   if (!isSeller && !isBuyer) return ctx.reply('Not your deal.');
-  if (!['pending_deposit', 'funded'].includes(deal.status)) return ctx.reply(`Cannot cancel. Status: ${deal.status}`);
+  if (deal.status !== 'pending_deposit') return ctx.reply(`Cannot cancel. Status: ${deal.status}`);
+  if (!isSeller) return ctx.reply('Only the seller can cancel a pending deal.');
 
   await supabase.from('deals').update({ status: 'cancelled' }).ilike('deal_id', deal.deal_id);
   await ctx.reply(`❌ ${deal.deal_id} cancelled.`);
