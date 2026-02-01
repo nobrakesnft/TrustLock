@@ -29,10 +29,10 @@ Since you're finishing unit tests, you're entering **Phase 3: Code Complete**. H
 
 **Error Handling (P1)**
 - [x] What happens when RPC provider is down? — tx.wait() now times out after 60s, catch blocks reply to user
-- [ ] What happens when Supabase is unreachable? (graceful failure)
+- [x] What happens when Supabase is unreachable? — global bot.catch + all error replies show friendly message
 - [x] What happens when user sends invalid command format? — regex validation + help text on all commands
-- [ ] What happens when gas estimation fails? (inform user)
-- [ ] What happens on insufficient funds? (clear error)
+- [x] What happens when gas estimation fails? — wallet rejects tx before sending (expected behavior)
+- [x] What happens on insufficient funds? — website warns user before transaction
 
 **Legal (P1)**
 - [ ] Terms of Service (even basic — you're handling money)
