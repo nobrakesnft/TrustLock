@@ -38,12 +38,12 @@
         .network-badge {
             display: inline-block;
             padding: 5px 12px;
-            background: rgba(255,193,7,0.15);
-            color: #ffc107;
+            background: rgba(0,255,136,0.1);
+            color: #00ff88;
             border-radius: 20px;
             font-size: 0.7rem;
             margin-top: 8px;
-            border: 1px solid rgba(255,193,7,0.3);
+            border: 1px solid rgba(0,255,136,0.2);
         }
         .card {
             background: rgba(255,255,255,0.03);
@@ -435,7 +435,7 @@
         <div class="logo">
             <h1>DealPact</h1>
             <p>Secure Escrow Payment</p>
-            <span class="network-badge">Base Sepolia Testnet</span>
+            <span class="network-badge">Live on Base</span>
         </div>
 
         <!-- Social Proof -->
@@ -870,7 +870,7 @@
                 // Check network
                 const network = await provider.getNetwork();
                 if (network.chainId !== CONFIG.CHAIN_ID) {
-                    showAlert('action-alert', 'Switching to Base Sepolia...', 'info');
+                    showAlert('action-alert', 'Switching to Base...', 'info');
                     try {
                         await ethProvider.request({
                             method: 'wallet_switchEthereumChain',
@@ -882,7 +882,7 @@
                                 method: 'wallet_addEthereumChain',
                                 params: [{
                                     chainId: '0x14A34',
-                                    chainName: 'Base Sepolia',
+                                    chainName: 'Base',
                                     nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
                                     rpcUrls: [CONFIG.RPC],
                                     blockExplorerUrls: [CONFIG.EXPLORER]
