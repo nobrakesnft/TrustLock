@@ -1,7 +1,9 @@
 # DealPact MVP — Product Requirements Document
 
 > Generated: January 2025
-> Status: Ready to Build
+> Updated: February 2025
+> Status: **LAUNCHED ON MAINNET**
+> Contract: `0x116511753bf00671bc321f2e3364159Fe502ed22` (Base)
 > PMF Score: 9.1/10
 
 ---
@@ -78,28 +80,32 @@ Sells game keys, premium accounts, software licenses in Telegram groups. Needs b
 
 ## 5. Feature Requirements
 
-### MVP (P0) — Must Have for Launch
+### MVP (P0) — Must Have for Launch ✅ ALL COMPLETE
 
-| # | Feature | Description |
-|---|---------|-------------|
-| 1 | **Create Escrow** | `/new @buyer 100 USDC "Logo design"` creates a deal |
-| 2 | **Deposit Funds** | Buyer clicks link → deposits USDC to smart contract |
-| 3 | **Release Funds** | Buyer confirms → funds go to seller (minus 1.5% fee) |
-| 4 | **Cancel/Refund** | Both parties agree → funds return to buyer |
-| 5 | **Dispute Flag** | Either party flags dispute → owner notified |
-| 6 | **Manual Resolution** | Owner reviews, decides fund release |
-| 7 | **Deal Status** | `/status [deal_id]` shows current state |
-| 8 | **Reputation Counter** | Track successful deals per wallet (on-chain) |
+| # | Feature | Description | Status |
+|---|---------|-------------|--------|
+| 1 | **Create Escrow** | `/new @buyer 100 USDC "Logo design"` creates a deal | ✅ |
+| 2 | **Deposit Funds** | Buyer clicks link → deposits USDC to smart contract | ✅ |
+| 3 | **Release Funds** | Buyer confirms → funds go to seller (minus 1.5% fee) | ✅ |
+| 4 | **Cancel/Refund** | Both parties agree → funds return to buyer | ✅ |
+| 5 | **Dispute Flag** | Either party flags dispute → owner notified | ✅ |
+| 6 | **Manual Resolution** | Owner reviews, decides fund release | ✅ |
+| 7 | **Deal Status** | `/status [deal_id]` shows current state | ✅ |
+| 8 | **Reputation Counter** | Track successful deals per wallet (on-chain) | ✅ |
+| 9 | **Review System** | Star ratings + comments after deals | ✅ |
+| 10 | **Wallet Registration** | Interactive button to register/update wallet | ✅ |
+| 11 | **Evidence System** | Submit text/photo evidence in disputes | ✅ |
+| 12 | **Moderator System** | Assign mods to handle disputes | ✅ |
 
 ### Phase 2 (P1) — Add After MVP Works
 
-| # | Feature | Description |
-|---|---------|-------------|
-| 1 | **Milestone Payments** | Split payment into stages |
-| 2 | **Reputation Badges** | Visual trust levels (New/Verified/Trusted) |
-| 3 | **Auto-release Timer** | Funds release after X days if buyer silent |
-| 4 | **Multiple Arbiters** | Community members can resolve disputes |
-| 5 | **Simple Web Dashboard** | View your deals history |
+| # | Feature | Description | Status |
+|---|---------|-------------|--------|
+| 1 | **Milestone Payments** | Split payment into stages | Planned |
+| 2 | **Reputation Badges** | Visual trust levels (New/Verified/Trusted) | ✅ Done |
+| 3 | **Auto-release Timer** | Funds release after X days if buyer silent | ✅ Done (24hr reminder) |
+| 4 | **Multiple Arbiters** | Community members can resolve disputes | ✅ Done (Mod system) |
+| 5 | **Simple Web Dashboard** | View your deals history | ✅ Done (Frontend) |
 
 ### Phase 3 (P2) — Future Nice-to-Haves
 
@@ -310,42 +316,80 @@ cancel(dealId) → Both parties must call, returns to buyer
 
 ## 11. Implementation Phases
 
-### Phase 1: Foundation (Weeks 1-3)
-- [ ] Set up development environment
-- [ ] Create Telegram bot with BotFather
-- [ ] Build basic bot that responds to /start
-- [ ] Learn Solidity basics
-- [ ] Deploy simple contract on Base testnet
-- [ ] Set up Supabase project
+### Phase 1: Foundation (Weeks 1-3) ✅ COMPLETE
+- [x] Set up development environment
+- [x] Create Telegram bot with BotFather
+- [x] Build basic bot that responds to /start
+- [x] Learn Solidity basics
+- [x] Deploy simple contract on Base testnet
+- [x] Set up Supabase project
 
-### Phase 2: Core Escrow (Weeks 4-7)
-- [ ] Write escrow smart contract
-- [ ] Test contract on Base Sepolia testnet
-- [ ] Connect bot to Supabase
-- [ ] Implement /new command
-- [ ] Generate deposit links
-- [ ] Implement /release command
-- [ ] Implement /dispute and /resolve
+### Phase 2: Core Escrow (Weeks 4-7) ✅ COMPLETE
+- [x] Write escrow smart contract
+- [x] Test contract on Base Sepolia testnet
+- [x] Connect bot to Supabase
+- [x] Implement /new command
+- [x] Generate deposit links
+- [x] Implement /release command
+- [x] Implement /dispute and /resolve
 
-### Phase 3: Polish & Launch (Weeks 8-10)
-- [ ] Add reputation counter
-- [ ] Implement /rep command
-- [ ] Add fee collection (1.5%)
-- [ ] Error handling
-- [ ] Test with real USDC (small amounts)
-- [ ] Get 5 beta users
-- [ ] Soft launch
+### Phase 3: Polish & Launch (Weeks 8-10) ✅ COMPLETE
+- [x] Add reputation counter
+- [x] Implement /rep command
+- [x] Add fee collection (1.5%)
+- [x] Error handling
+- [x] Test with real USDC (small amounts)
+- [x] Get 5 beta users
+- [x] Soft launch
+- [x] Deploy to Base Mainnet
+- [x] Verify contract on Basescan
+
+### Phase 4: Post-Launch Improvements ✅ COMPLETE
+- [x] Review/rating system with comments
+- [x] Interactive wallet registration buttons
+- [x] Update wallet feature
+- [x] Button-based UI navigation
+- [x] Evidence submission for disputes (text + photos)
+- [x] Moderator system for dispute handling
+- [x] Admin panel with logs
+- [x] 24-hour release reminders
+- [x] On-chain dispute marking
 
 ---
 
-## 12. Open Questions
+## 12. Open Questions (RESOLVED)
 
-1. Max escrow limit for MVP? → Recommend $500
-2. Dispute resolution SLA? → 48 hours max
-3. Auto-refund if owner unavailable? → After 7 days
-4. Multi-language? → English only for MVP
-5. Which USDC? → Native USDC on Base
+| Question | Decision |
+|----------|----------|
+| Max escrow limit for MVP? | $500 USDC ✅ |
+| Dispute resolution SLA? | 48 hours max ✅ |
+| Auto-refund if owner unavailable? | After 7 days ✅ |
+| Multi-language? | English only for MVP ✅ |
+| Which USDC? | Native USDC on Base ✅ |
 
 ---
 
-*This PRD is your blueprint. Reference it whenever you're unsure what to build next.*
+## 13. Launch Roadmap
+
+### Completed Milestones
+- [x] Smart contract deployed to Base Mainnet
+- [x] Contract verified on Basescan
+- [x] Bot running with all core features
+- [x] Review/rating system with comments
+- [x] Wallet registration buttons
+- [x] Moderator system
+- [x] Evidence submission
+- [x] Frontend deposit/release interface
+
+### Next Steps (Post-Launch)
+- [ ] Onboard first 10 real users
+- [ ] Monitor for bugs in production
+- [ ] Gather user feedback
+- [ ] Marketing push in crypto freelancer communities
+- [ ] Consider milestone payments feature
+- [ ] Multi-chain expansion (Arbitrum, Optimism)
+- [ ] Mobile-friendly frontend improvements
+
+---
+
+*DealPact is LIVE on Base Mainnet. Ship it!*
